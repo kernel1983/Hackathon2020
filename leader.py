@@ -136,7 +136,7 @@ class LeaderHandler(tornado.websocket.WebSocketHandler):
     def on_message(self, msg):
         global current_view_no
         seq = tornado.escape.json_decode(msg)
-        print(tree.current_port, "on message from leader connector", seq)
+        # print(tree.current_port, "on message from leader connector", seq)
 
         if seq[0] == "NEW_BLOCK":
             miner.new_block(seq)
@@ -233,8 +233,9 @@ class LeaderHandler(tornado.websocket.WebSocketHandler):
             confirms = view_confirms[k]
             if confirm_view not in confirms:
                 confirms.add(confirm_view)
+                print(tree.current_port, current_view, confirms)
                 if transaction and len(confirms)==2:
-                    print(tree.current_port, "NEW_TX_BLOCK", txid, confirms)
+                    print(tree.current_port, "NEW_TX_BLOCK", txid)
                     message = ["NEW_TX_BLOCK", transaction, time.time(), uuid.uuid4().hex]
             return
 
@@ -291,7 +292,7 @@ class LeaderConnector(object):
             return
 
         seq = tornado.escape.json_decode(msg)
-        print(tree.current_port, "on message from leader", seq)
+        # print(tree.current_port, "on message from leader", seq)
 
         if seq[0] == "NEW_BLOCK":
             miner.new_block(seq)
@@ -317,8 +318,9 @@ class LeaderConnector(object):
             confirms = view_confirms[k]
             if confirm_view not in confirms:
                 confirms.add(confirm_view)
+                print(tree.current_port, current_view, confirms)
                 if transaction and len(confirms)==2:
-                    print(tree.current_port, "NEW_TX_BLOCK", txid, confirms)
+                    print(tree.current_port, "NEW_TX_BLOCK", txid)
                     message = ["NEW_TX_BLOCK", transaction, time.time(), uuid.uuid4().hex]
             return
 
