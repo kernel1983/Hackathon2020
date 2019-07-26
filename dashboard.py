@@ -19,7 +19,7 @@ import tornado.httpserver
 import tornado.gen
 import tornado.escape
 
-# from ecdsa import SigningKey, NIST384p
+from ecdsa import SigningKey, NIST256p
 # from umbral import pre, keys, signing
 # import umbral.config
 
@@ -90,18 +90,17 @@ class NewTxHandler(tornado.web.RequestHandler):
             user_nos = list(range(USER_NO))
             i = random.choice(user_nos)
             sender_filename = "pk" + str(i)
-            sender_sk = keys.UmbralPrivateKey.from_bytes(bytes.fromhex(open("data/pk/"+sender_filename).read()))
-            sender_vk = sender_sk.get_pubkey()
-            sender = sender_vk.to_bytes().hex()
+            sender_sk = SigningKey.from_pem(open("data/pk/"+sender_filename).read())
+            sender_vk = sender_sk.get_verifying_key()
+            sender = base64.b64encode(sender_vk.to_string()).decode()
 
             user_nos.remove(i)
             j = random.choice(user_nos)
             receiver_filename = "pk" + str(j)
-            receiver_sk = keys.UmbralPrivateKey.from_bytes(bytes.fromhex(open("data/pk/"+receiver_filename).read()))
+            receiver_sk = SigningKey.from_pem(open("data/pk/"+receiver_filename).read())
             amount = random.randint(1, 20)
-            receiver_vk = receiver_sk.get_pubkey()
-            receiver = receiver_vk.to_bytes().hex()
-
+            receiver_vk = receiver_sk.get_verifying_key()
+            receiver = base64.b64encode(receiver_vk.to_string()).decode()
             txid = uuid.uuid4().hex
             timestamp = int(time.time())
             transaction = {
@@ -111,15 +110,14 @@ class NewTxHandler(tornado.web.RequestHandler):
                 "timestamp": timestamp,
                 "amount": amount
             }
-            # print(transaction)
-            sender_sign = signing.Signer(sender_sk)
-            signature = sender_sign(str(timestamp).encode("utf8"))
+            # sender_sign = signing.Signer(sender_sk)
+            signature = sender_sk.sign(str(timestamp).encode("utf8"))
             data = {
                 "transaction": transaction,
-                "signature": bytes(signature).hex()
+                "signature": base64.b64encode(signature).decode()
             }
 
-            assert signature.verify(str(timestamp).encode("utf8"), sender_vk)
+            assert sender_vk.verify(signature, str(timestamp).encode("utf8"))
 
             known_addresses_list = list(ControlHandler.known_addresses)
             addr = random.choice(known_addresses_list)
