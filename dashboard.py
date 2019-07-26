@@ -20,8 +20,8 @@ import tornado.gen
 import tornado.escape
 
 # from ecdsa import SigningKey, NIST384p
-from umbral import pre, keys, signing
-import umbral.config
+# from umbral import pre, keys, signing
+# import umbral.config
 
 incremental_port = 8000
 
@@ -41,7 +41,8 @@ def get_group(target):
         if res["groupid"] == res["current_groupid"]:
             break
         addr = res["address"][0]
-    return addr, res["groupid"]
+    yield addr, res["groupid"]
+    return
 
 class Application(tornado.web.Application):
     def __init__(self):
@@ -76,7 +77,7 @@ class NewNodeHandler(tornado.web.RequestHandler):
             return
         self.count -= 1
         incremental_port += 1
-        subprocess.Popen(["python3", "node.py", "--port=%s"%incremental_port, "--control_port=8000"], shell=False)
+        subprocess.Popen(["python", "node.py", "--port=%s"%incremental_port, "--control_port=8000"], shell=False)
         self.write("new node %s\n" % incremental_port)
         tornado.ioloop.IOLoop.instance().call_later(2, self.add)
 

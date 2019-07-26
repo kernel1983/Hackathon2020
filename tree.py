@@ -278,7 +278,7 @@ class NodeConnector(object):
             for h, p in buddies_left:
                 BuddyConnector(h, p)
 
-            control_node.write_message(tornado.escape.json_encode(["ADDRESS2", current_host, current_port, current_groupid]))#传branch！！！！！！！！！！！！！！！！！！
+            control_node.write_message(tornado.escape.json_encode(["ADDRESS2", current_host, current_port, current_groupid]))
 
             available_children_buddies.setdefault(current_groupid, set()).add((current_host, current_port))
             print(current_port, "GROUP_ID", current_groupid, seq[3])

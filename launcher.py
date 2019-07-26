@@ -20,7 +20,7 @@ import tornado.gen
 import tornado.escape
 
 # from ecdsa import SigningKey, NIST384p
-from umbral import pre, keys, signing
+# from umbral import pre, keys, signing
 
 incremental_port = 8000
 
@@ -48,7 +48,7 @@ class NewNodeHandler(tornado.web.RequestHandler):
         count = int(self.get_argument("n", "1"))
         for i in range(count):
             incremental_port += 1
-            subprocess.Popen(["python3", "node.py", "--port=%s"%incremental_port, "--control_port=8000"])
+            subprocess.Popen(["python", "node.py", "--port=%s"%incremental_port, "--control_port=8000"])
             self.write("new node %s\n" % incremental_port)
         self.finish()
 
