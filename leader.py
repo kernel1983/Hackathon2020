@@ -204,10 +204,10 @@ class LeaderHandler(tornado.websocket.WebSocketHandler):
             view = seq[1]
             view_no = seq[2]
             # view's no should be continuous
-            transaction = seq[3]["transaction"]
-            txid = transaction["txid"]
+            transaction = seq[3]
+            txid = transaction["transaction"]["txid"]
             # gen block
-            block_hash = ""
+            block_hash = transaction["block_hash"]
             k = "%s_%s"%(int(view), int(view_no))
             view_transactions[k] = transaction
             forward(["PBFT_P", view, view_no, txid, block_hash])
@@ -238,6 +238,7 @@ class LeaderHandler(tornado.websocket.WebSocketHandler):
                 if transaction and len(confirms)==2:
                     print(tree.current_port, "NEW_TX_BLOCK", txid)
                     message = ["NEW_TX_BLOCK", transaction, time.time(), uuid.uuid4().hex]
+                    tree.forward(message)
             return
 
         elif seq[0] == "PBFT_V":
@@ -303,10 +304,10 @@ class LeaderConnector(object):
             view = seq[1]
             view_no = seq[2]
             # view's no should be continuous
-            transaction = seq[3]["transaction"]
-            txid = transaction["txid"]
+            transaction = seq[3]
+            txid = transaction["transaction"]["txid"]
             # gen block
-            block_hash = ""
+            block_hash = transaction["block_hash"]
             k = "%s_%s"%(int(view), int(view_no))
             view_transactions[k] = transaction
             forward(["PBFT_P", view, view_no, txid, block_hash])
@@ -337,6 +338,7 @@ class LeaderConnector(object):
                 if transaction and len(confirms)==2:
                     print(tree.current_port, "NEW_TX_BLOCK", txid)
                     message = ["NEW_TX_BLOCK", transaction, time.time(), uuid.uuid4().hex]
+                    tree.forward(message)
             return
 
         # elif seq[0] == "TX":
