@@ -90,6 +90,7 @@ def lastest_block(root_hash):
 
 
 def new_tx_block(seq):
+    global transactions
     msg_header, transaction, timestamp, msg_id = seq
 
     txid = transaction["transaction"]["txid"]
@@ -112,6 +113,11 @@ def new_tx_block(seq):
             locked_accounts.remove(sender)
         if receiver in locked_accounts:
             locked_accounts.remove(receiver)
+
+        # for tx in transactions:
+        #     if tx["transaction"]["txid"] == txid:
+        #         transactions.remove(tx)
+        #         break
     except:
         pass
 
@@ -433,8 +439,8 @@ class LeaderConnector(object):
 
 transactions = []
 locked_accounts = set()
-block_to_confirm = {}
-block_to_reply = {}
+# block_to_confirm = {}
+# block_to_reply = {}
 def mining():
     # global working
     # global transactions
@@ -447,10 +453,13 @@ def mining():
     if transactions:
         # print(tree.current_port, "I'm the leader", current_view, "of leader view", system_view)
         seq = transactions.pop(0)
-        if current_view != system_view:
-            return
         transaction = seq[1]
         txid = transaction["transaction"]["txid"]
+        if current_view != system_view:
+            tx = database.connection.get("SELECT * FROM graph"+tree.current_port+" WHERE txid = %s LIMIT 1", txid)
+            if not tx:
+                transactions.append(seq)
+            return
         sender = transaction["transaction"]["sender"]
         receiver = transaction["transaction"]["receiver"]
         amount = transaction["transaction"]["amount"]
@@ -492,6 +501,7 @@ def update(leaders):
     global current_leaders
     global previous_leaders
     global working
+    global transactions
 
     current_leaders = leaders
     if ("localhost", tree.current_port) in leaders - previous_leaders:
@@ -519,6 +529,7 @@ def update(leaders):
 
     if ("localhost", tree.current_port) not in leaders:
         working = False
+        transactions = []
 
         while LeaderConnector.leader_nodes:
             LeaderConnector.leader_nodes.pop().close()

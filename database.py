@@ -33,7 +33,7 @@ create_graph = """CREATE TABLE `graph%s` (
     `data` text NOT NULL,
     PRIMARY KEY (`id`),
     UNIQUE KEY `hash` (`hash`),
-    UNIQUE KEY `block_nonce` (`from_block`,`to_block`,`nonce`),
+    UNIQUE KEY `txid` (`txid`),
     KEY `from_block` (`from_block`,`sender`,`nonce`),
     KEY `to_block` (`to_block`,`receiver`,`nonce`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1000 DEFAULT CHARSET=utf8;

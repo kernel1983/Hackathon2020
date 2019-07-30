@@ -166,7 +166,8 @@ class NodeHandler(tornado.websocket.WebSocketHandler):
 
         elif seq[0] == "NEW_TX":
             txid = seq[1]["transaction"]["txid"]
-            if (current_host, current_port) in leader.current_leaders and txid not in processed_message_ids:
+            # if (current_host, current_port) in leader.current_leaders and txid not in processed_message_ids:
+            if txid not in processed_message_ids:
                 processed_message_ids.add(txid)
                 leader.transactions.append(seq)
                 # print(current_port, "tx msg", seq)
