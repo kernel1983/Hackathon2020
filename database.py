@@ -31,6 +31,7 @@ create_graph = """CREATE TABLE `graph%s` (
     `sender` varchar(128) NOT NULL,
     `receiver` varchar(128) NOT NULL,
     `data` text NOT NULL,
+    `insert_timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     UNIQUE KEY `hash` (`hash`),
     UNIQUE KEY `txid` (`txid`),
