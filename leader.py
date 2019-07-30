@@ -442,7 +442,7 @@ def mining():
     global current_view_no
     global view_transactions
     if working:
-        tornado.ioloop.IOLoop.instance().call_later(1, mining)
+        tornado.ioloop.IOLoop.instance().add_callback(mining)
 
     if transactions:
         # print(tree.current_port, "I'm the leader", current_view, "of leader view", system_view)
@@ -459,10 +459,11 @@ def mining():
 
         if sender in locked_accounts or receiver in locked_accounts:
             transactions.append(seq)
-            print(tree.current_port, "put tx back", txid)
+            print(tree.current_port, "put tx back", txid, len(transactions))
             return
         locked_accounts.add(sender)
         locked_accounts.add(receiver)
+        print(tree.current_port, "locked_accounts", locked_accounts)
 
         sender_blocks = lastest_block(sender)
         receiver_blocks = lastest_block(receiver)
