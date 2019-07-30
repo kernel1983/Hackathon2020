@@ -89,6 +89,33 @@ def lastest_block(root_hash):
     return longest
 
 
+def new_tx_block(seq):
+    msg_header, transaction, timestamp, msg_id = seq
+
+    txid = transaction["transaction"]["txid"]
+    sender = transaction["transaction"]["sender"]
+    receiver = transaction["transaction"]["receiver"]
+    amount = transaction["transaction"]["amount"]
+    timestamp = transaction["transaction"]["timestamp"]
+
+    signature = transaction["signature"]
+    block_hash = transaction["block_hash"]
+    nonce = transaction["nonce"]
+    from_block = transaction["from_block"]
+    to_block = transaction["to_block"]
+
+    try:
+        sql = "INSERT INTO graph"+tree.current_port+" (txid, timestamp, hash, from_block, to_block, sender, receiver, nonce, data) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
+        database.connection.execute(sql, txid, int(timestamp), block_hash, from_block, to_block, sender, receiver, nonce, tornado.escape.json_encode(transaction))
+
+        if sender in locked_accounts:
+            locked_accounts.remove(sender)
+        if receiver in locked_accounts:
+            locked_accounts.remove(receiver)
+    except:
+        pass
+
+
 def forward(seq):
     # global processed_message_ids
 
@@ -405,20 +432,20 @@ class LeaderConnector(object):
         forward(seq)
 
 transactions = []
-locked_blocks = set()
+locked_accounts = set()
 block_to_confirm = {}
 block_to_reply = {}
 def mining():
     # global working
     # global transactions
-    # global locked_blocks
+    global locked_accounts
     global current_view_no
     global view_transactions
     if working:
         tornado.ioloop.IOLoop.instance().call_later(1, mining)
 
     if transactions:
-        print(tree.current_port, "I'm the leader", current_view, "of leader view", system_view)
+        # print(tree.current_port, "I'm the leader", current_view, "of leader view", system_view)
         seq = transactions.pop(0)
         if current_view != system_view:
             return
@@ -430,50 +457,32 @@ def mining():
         timestamp = transaction["transaction"]["timestamp"]
         signature = transaction["signature"]
 
+        if sender in locked_accounts or receiver in locked_accounts:
+            transactions.append(seq)
+            print(tree.current_port, "put tx back", txid)
+            return
+        locked_accounts.add(sender)
+        locked_accounts.add(receiver)
+
         sender_blocks = lastest_block(sender)
         receiver_blocks = lastest_block(receiver)
 
         from_block = sender_blocks[-1] if sender_blocks else sender
         to_block = receiver_blocks[-1] if receiver_blocks else receiver
-        # if from_block in locked_blocks or to_block in locked_blocks:
-        #     transactions.append(seq)
-        #     tornado.ioloop.IOLoop.instance().call_later(1, mining)
-        #     return
 
         nonce = 0
         data = txid + sender + receiver + str(amount) + str(timestamp) + signature + from_block + to_block + str(tree.current_port)
-        # while True:
         block_hash = hashlib.sha256((data + str(nonce)).encode('utf8')).hexdigest()
-            # if block_hash < certain_value:
-                # locked_blocks.add(from_block)
-                # locked_blocks.add(to_block)
         transaction["block_hash"] = block_hash
         transaction["nonce"] = nonce
         transaction["from_block"] = from_block
         transaction["to_block"] = to_block
-                # block_to_confirm[txid] = transaction
-
-                # reply = block_to_reply.setdefault(txid, set())
-                # for leader_node in LeaderHandler.leader_nodes:
-                #     reply.add(leader_node)
-
-                # for leader_connector in LeaderConnector.leader_nodes:
-                #     reply.add(leader_connector)
-                # print(tree.current_port, "reply", reply)
-
-                # print(tree.current_port, message)
 
         current_view_no += 1
         k = "%s_%s"%(int(current_view), int(current_view_no))
         view_transactions[k] = transaction
         message = ["PBFT_O", current_view, current_view_no, transaction]
         forward(message)
-                # break
-
-            # nonce += 1
-
-        # print(tree.current_port, "txid", txid, from_block, to_block)
-
 
 
 current_leaders = set()
