@@ -85,10 +85,10 @@ class NewTxHandler(tornado.web.RequestHandler):
     @tornado.web.asynchronous
     # @tornado.gen.coroutine
     def get(self):
-        self.USER_NO = 10
+        USER_NO = 100
         self.count = int(self.get_argument("n", "1"))
         self.users = {}
-        for n in range(self.USER_NO):
+        for n in range(USER_NO):
             user_filename = "pk" + str(n)
             user_sk = SigningKey.from_pem(open("data/pk/"+user_filename).read())
             self.users[n] = user_sk
@@ -96,7 +96,7 @@ class NewTxHandler(tornado.web.RequestHandler):
 
         self.transactions = []
         for n in range(self.count):
-            user_nos = set(range(self.USER_NO))
+            user_nos = set(range(USER_NO))
             i = random.choice(list(user_nos))
             sender_sk = self.users[i]
             sender_vk = sender_sk.get_verifying_key()
@@ -400,6 +400,10 @@ class VisualizeDataHandler(tornado.websocket.WebSocketHandler):
         # self.write("<br>current_groupid: %s <br>" % message)
         VisualizeDataHandler.send_updates(message)
 
+def boot():
+    # os.system("curl 127.0.0.1:8000/new_node?n=9")
+    http_client = tornado.httpclient.AsyncHTTPClient()
+    http_client.fetch("http://127.0.0.1:8000/new_node?n=9", method="GET")
 
 def main():
     global port, control_port
@@ -412,7 +416,7 @@ def main():
 
     server = Application()
     server.listen(control_port)
-    # tornado.ioloop.IOLoop.instance().add_callback(connect)
+    tornado.ioloop.IOLoop.instance().call_later(2, boot)
     tornado.ioloop.IOLoop.instance().start()
 
 
