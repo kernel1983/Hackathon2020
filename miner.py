@@ -123,7 +123,7 @@ def new_block(seq):
     if height - (setting.LEADERS_NUM+setting.ELECTION_WAIT-1) > 0:
         leader.system_view = height - (setting.LEADERS_NUM+setting.ELECTION_WAIT-1)
         # print(tree.current_port, "leader view", leader.system_view, leader.current_view)
-    print(tree.current_port, "current view", leader.current_view, "system view", leader.system_view)
+        print(tree.current_port, "current view", leader.current_view, "system view", leader.system_view)
 
 
 def main():

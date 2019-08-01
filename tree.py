@@ -541,22 +541,26 @@ def on_message(msg):
 
 def connect():
     print("\n\n")
-    print(current_port, "connect control", control_port)
-    tornado.websocket.websocket_connect("ws://localhost:%s/control" % control_port, callback=on_connect, on_message_callback=on_message)
+    print(current_port, "connect control", control_host, "port", control_port)
+    tornado.websocket.websocket_connect("ws://%s:%s/control" % (control_host, control_port), callback=on_connect, on_message_callback=on_message)
 
 def main():
     global current_host
     global current_port
+    global control_host
     global control_port
     global available_buddies
 
     parser = argparse.ArgumentParser(description="node description")
+    parser.add_argument('--host', default="127.0.0.1")
     parser.add_argument('--port')
-    parser.add_argument('--control_port')
+    parser.add_argument('--control_host')
+    parser.add_argument('--control_port', default=8000)
 
     args = parser.parse_args()
-    current_host = "localhost"
+    current_host = args.host
     current_port = args.port
+    control_host = args.control_host
     control_port = args.control_port
     available_buddies.add(tuple([current_host, current_port]))
 

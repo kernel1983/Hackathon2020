@@ -472,7 +472,7 @@ def mining():
             return
         locked_accounts.add(sender)
         locked_accounts.add(receiver)
-        print(tree.current_port, "locked_accounts", locked_accounts)
+        # print(tree.current_port, "locked_accounts", locked_accounts)
 
         sender_blocks = lastest_block(sender)
         receiver_blocks = lastest_block(receiver)
@@ -504,7 +504,7 @@ def update(leaders):
     global transactions
 
     current_leaders = leaders
-    if ("localhost", tree.current_port) in leaders - previous_leaders:
+    if (tree.current_host, tree.current_port) in leaders - previous_leaders:
         for other_leader_addr in leaders:
             connected = set([(i.host, i.port) for i in LeaderConnector.leader_nodes]) |\
                         set([(i.from_host, i.from_port) for i in LeaderHandler.leader_nodes]) |\
@@ -527,7 +527,7 @@ def update(leaders):
         nodes_to_close.pop().close()
 
 
-    if ("localhost", tree.current_port) not in leaders:
+    if (tree.current_host, tree.current_port) not in leaders:
         working = False
         transactions = []
 

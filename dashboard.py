@@ -78,7 +78,7 @@ class NewNodeHandler(tornado.web.RequestHandler):
             return
         self.count -= 1
         incremental_port += 1
-        subprocess.Popen(["python", "node.py", "--port=%s"%incremental_port, "--control_port=8000"], shell=False)
+        subprocess.Popen(["python", "node.py", "--host=%s"%control_host, "--port=%s"%incremental_port, "--control_host=%s"%control_host, "--control_port=%s"%control_port], shell=False)
         self.write("new node %s\n" % incremental_port)
         tornado.ioloop.IOLoop.instance().call_later(2, self.add)
 
@@ -480,12 +480,15 @@ def boot():
     http_client.fetch("http://127.0.0.1:8000/new_node?n=9", method="GET")
 
 def main():
-    global port, control_port
+    global control_host
+    global control_port
 
     parser = argparse.ArgumentParser(description="control description")
+    parser.add_argument('--control_host', default="127.0.0.1")
     parser.add_argument('--control_port', default=8000)
 
     args = parser.parse_args()
+    control_host = args.control_host
     control_port = args.control_port
 
     server = Application()
