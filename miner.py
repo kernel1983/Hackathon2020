@@ -76,14 +76,14 @@ def mining():
         else:
             new_difficulty = max(1, difficulty - 1)
 
-        if tree.current_port in [i.identity for i in longest[-6:]]:
+        if "%s:%s"%(tree.current_host, tree.current_port) in [i.identity for i in longest[-6:]]:
             # this is a good place to wake up leader by timestamp
             return
 
     else:
         longest_hash, difficulty, new_difficulty, data, identity = "0"*64, 1, 1, "", ""
 
-    new_identity = str(tree.current_port)
+    new_identity = "%s:%s"%(tree.current_host, tree.current_port)
     new_timestamp = str(time.time())
     for i in range(10):
         block_hash = hashlib.sha256((new_identity + new_timestamp + identity + data + longest_hash + str(difficulty) + str(nonce)).encode('utf8')).hexdigest()
@@ -111,12 +111,12 @@ def new_block(seq):
 
     longest = longest_chain()
     if longest:
-        leaders = set([("localhost", i.identity) for i in longest[-setting.LEADERS_NUM-setting.ELECTION_WAIT:-setting.ELECTION_WAIT]])
+        leaders = set([tuple(i.identity.split(":")) for i in longest[-setting.LEADERS_NUM-setting.ELECTION_WAIT:-setting.ELECTION_WAIT]])
         leader.update(leaders)
         # this method to wake up leader to work, is not as good as the timestamp way
 
         for i in longest[-setting.LEADERS_NUM-setting.ELECTION_WAIT:-setting.ELECTION_WAIT]:
-            if i.identity == tree.current_port:
+            if i.identity == "%s:%s"%(tree.current_host, tree.current_port):
                 leader.current_view = i.height
                 break
 
