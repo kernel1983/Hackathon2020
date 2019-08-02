@@ -1,5 +1,8 @@
 from __future__ import print_function
 
+import sys
+sys.path.append("..")
+
 import time
 import uuid
 import hashlib
@@ -92,6 +95,7 @@ def lastest_block(root_hash):
 def new_tx_block(seq):
     global transactions
     msg_header, transaction, timestamp, msg_id = seq
+    # print(seq)
 
     txid = transaction["transaction"]["txid"]
     sender = transaction["transaction"]["sender"]
@@ -171,8 +175,9 @@ class LeaderHandler(tornado.websocket.WebSocketHandler):
         seq = tornado.escape.json_decode(msg)
         # print(tree.current_port, "on message from leader connector", seq)
 
-        if seq[0] == "NEW_BLOCK":
-            miner.new_block(seq)
+        if seq[0] == "NEW_TX_BLOCK":
+            new_tx_block(seq)
+            return
 
         # elif seq[0] == "TX":
         #     transaction = seq[1]
@@ -271,7 +276,7 @@ class LeaderHandler(tornado.websocket.WebSocketHandler):
                 if transaction and len(confirms)==2:
                     print(tree.current_port, "NEW_TX_BLOCK", txid)
                     message = ["NEW_TX_BLOCK", transaction, time.time(), uuid.uuid4().hex]
-                    tree.forward(message)
+                    forward(message)
             return
 
         elif seq[0] == "PBFT_V":
@@ -329,8 +334,9 @@ class LeaderConnector(object):
         seq = tornado.escape.json_decode(msg)
         # print(tree.current_port, "on message from leader", seq)
 
-        if seq[0] == "NEW_BLOCK":
-            miner.new_block(seq)
+        if seq[0] == "NEW_TX_BLOCK":
+            new_tx_block(seq)
+            return
 
         elif seq[0] == "PBFT_O":
             # print(tree.current_port, "PBFT_O get message", seq[1])
@@ -371,7 +377,7 @@ class LeaderConnector(object):
                 if transaction and len(confirms)==2:
                     print(tree.current_port, "NEW_TX_BLOCK", txid)
                     message = ["NEW_TX_BLOCK", transaction, time.time(), uuid.uuid4().hex]
-                    tree.forward(message)
+                    forward(message)
             return
 
         # elif seq[0] == "TX":
@@ -536,7 +542,36 @@ def update(leaders):
 
     previous_leaders = leaders
 
+class NewTxHandler(tornado.web.RequestHandler):
+    def post(self):
+        tx = tornado.escape.json_decode(self.request.body)
+        msg = ["NEW_TX", tx, time.time(), uuid.uuid4().hex]
+        transactions.append(msg)
+        self.finish({"txid": tx["transaction"]["txid"]})
+
+class Application(tornado.web.Application):
+    def __init__(self):
+        handlers = [
+                    (r"/leader", LeaderHandler),
+                    (r"/new_tx", NewTxHandler),
+                    ]
+        settings = {"debug":True}
+
+        tornado.web.Application.__init__(self, handlers, **settings)
+
+def main():
+    LeaderConnector("127.0.0.1", 8001)
+    LeaderConnector("127.0.0.1", 8002)
 
 if __name__ == '__main__':
     # main()
-    print("run python node.py pls")
+    # print("run python node.py pls")
+    tree.current_port = "8003"
+    server = Application()
+    server.listen(tree.current_port)
+    tornado.ioloop.IOLoop.instance().add_callback(main)
+    working = True
+    system_view = 1
+    current_view = 3
+    tornado.ioloop.IOLoop.instance().add_callback(mining)
+    tornado.ioloop.IOLoop.instance().start()
