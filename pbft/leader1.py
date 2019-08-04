@@ -3,9 +3,16 @@ from __future__ import print_function
 import sys
 sys.path.append("..")
 
+import os
+import subprocess
 import time
+import socket
+import argparse
+import random
 import uuid
+import base64
 import hashlib
+import urllib
 
 import tornado.web
 import tornado.websocket
@@ -111,7 +118,7 @@ def new_tx_block(seq):
 
     try:
         sql = "INSERT INTO graph"+tree.current_port+" (txid, timestamp, hash, from_block, to_block, sender, receiver, nonce, data) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
-        database.connection.execute(sql, txid, int(timestamp), block_hash, from_block, to_block, sender, receiver, nonce, tornado.escape.json_encode(transaction))
+        # database.connection.execute(sql, txid, int(timestamp), block_hash, from_block, to_block, sender, receiver, nonce, tornado.escape.json_encode(transaction))
 
         if sender in locked_accounts:
             locked_accounts.remove(sender)
@@ -274,7 +281,7 @@ class LeaderHandler(tornado.websocket.WebSocketHandler):
                 confirms.add(confirm_view)
                 # print(tree.current_port, current_view, confirms, transaction)
                 if transaction and len(confirms)==2:
-                    print(tree.current_port, "NEW_TX_BLOCK", txid)
+                    # print(tree.current_port, "NEW_TX_BLOCK", txid)
                     message = ["NEW_TX_BLOCK", transaction, time.time(), uuid.uuid4().hex]
                     forward(message)
             return
@@ -375,7 +382,7 @@ class LeaderConnector(object):
                 confirms.add(confirm_view)
                 # print(tree.current_port, current_view, confirms, transaction)
                 if transaction and len(confirms)==2:
-                    print(tree.current_port, "NEW_TX_BLOCK", txid)
+                    # print(tree.current_port, "NEW_TX_BLOCK", txid)
                     message = ["NEW_TX_BLOCK", transaction, time.time(), uuid.uuid4().hex]
                     forward(message)
             return
@@ -455,6 +462,10 @@ def mining():
     global view_transactions
 
     delayed_transactions = []
+    t0 = None
+    if transactions:
+        t0 = time.time()
+        print('start', t0)
     while True:
         if not transactions:
             break
@@ -481,15 +492,18 @@ def mining():
         locked_accounts.add(receiver)
         # print(tree.current_port, "locked_accounts", locked_accounts)
 
-        sender_blocks = lastest_block(sender)
-        receiver_blocks = lastest_block(receiver)
+        # sender_blocks = lastest_block(sender)
+        # receiver_blocks = lastest_block(receiver)
 
-        from_block = sender_blocks[-1] if sender_blocks else sender
-        to_block = receiver_blocks[-1] if receiver_blocks else receiver
+        # from_block = sender_blocks[-1] if sender_blocks else sender
+        # to_block = receiver_blocks[-1] if receiver_blocks else receiver
+        from_block = sender
+        to_block = receiver
 
         nonce = 0
         data = txid + sender + receiver + str(amount) + str(timestamp) + signature + from_block + to_block + str(tree.current_port)
-        block_hash = hashlib.sha256((data + str(nonce)).encode('utf8')).hexdigest()
+        # block_hash = hashlib.sha256((data + str(nonce)).encode('utf8')).hexdigest()
+        block_hash = sender+receiver
         transaction["block_hash"] = block_hash
         transaction["nonce"] = nonce
         transaction["from_block"] = from_block
@@ -500,6 +514,10 @@ def mining():
         view_transactions[k] = transaction
         message = ["PBFT_O", current_view, current_view_no, transaction]
         forward(message)
+
+    if t0:
+        t1 = time.time()
+        print('end', t1-t0)
 
     transactions = delayed_transactions
     if working:
@@ -549,6 +567,33 @@ def update(leaders):
     previous_leaders = leaders
 
 class NewTxHandler(tornado.web.RequestHandler):
+    def get(self):
+        count = int(self.get_argument("n", 10000))
+        for n in range(0, count*2, 2):
+            sender = str(n)
+            receiver = str(n+1)
+
+            amount = random.randint(1, 20)
+            txid = uuid.uuid4().hex
+            timestamp = int(time.time())
+            transaction = {
+                "txid": txid,
+                "sender": sender,
+                "receiver": receiver,
+                "timestamp": timestamp,
+                "amount": amount
+            }
+            signature = bytes(n)
+            data = {
+                "transaction": transaction,
+                "signature": base64.b64encode(signature).decode()
+            }
+
+            print("gen tx", n)
+            msg = ["NEW_TX", data, time.time(), uuid.uuid4().hex]
+            transactions.append(msg)
+
+
     def post(self):
         tx = tornado.escape.json_decode(self.request.body)
         msg = ["NEW_TX", tx, time.time(), uuid.uuid4().hex]

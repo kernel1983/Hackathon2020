@@ -111,7 +111,7 @@ def new_tx_block(seq):
 
     try:
         sql = "INSERT INTO graph"+tree.current_port+" (txid, timestamp, hash, from_block, to_block, sender, receiver, nonce, data) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
-        database.connection.execute(sql, txid, int(timestamp), block_hash, from_block, to_block, sender, receiver, nonce, tornado.escape.json_encode(transaction))
+        # database.connection.execute(sql, txid, int(timestamp), block_hash, from_block, to_block, sender, receiver, nonce, tornado.escape.json_encode(transaction))
 
         if sender in locked_accounts:
             locked_accounts.remove(sender)
@@ -141,7 +141,7 @@ def forward(seq):
     for leader_connector in LeaderConnector.leader_nodes:
         leader_connector.conn.write_message(msg)
 
-
+t0 = None
 # connect point from leader node
 class LeaderHandler(tornado.websocket.WebSocketHandler):
     leader_nodes = set()
@@ -172,6 +172,7 @@ class LeaderHandler(tornado.websocket.WebSocketHandler):
     @tornado.gen.coroutine
     def on_message(self, msg):
         global current_view_no
+        global t0
         seq = tornado.escape.json_decode(msg)
         # print(tree.current_port, "on message from leader connector", seq)
 
@@ -256,6 +257,12 @@ class LeaderHandler(tornado.websocket.WebSocketHandler):
             view_no = seq[2]
             txid = seq[3]
             block_hash = seq[4]
+
+            if not t0:
+                t0 = time.time()
+            if t0:
+                print(time.time()-t0)
+
             # verify blockhash with own blockhash for txid
             forward(["PBFT_C", view, view_no, txid, current_view])
             return
@@ -274,7 +281,7 @@ class LeaderHandler(tornado.websocket.WebSocketHandler):
                 confirms.add(confirm_view)
                 # print(tree.current_port, current_view, confirms, transaction)
                 if transaction and len(confirms)==2:
-                    print(tree.current_port, "NEW_TX_BLOCK", txid)
+                    # print(tree.current_port, "NEW_TX_BLOCK", txid)
                     message = ["NEW_TX_BLOCK", transaction, time.time(), uuid.uuid4().hex]
                     forward(message)
             return
@@ -324,6 +331,7 @@ class LeaderConnector(object):
 
 
     def on_message(self, msg):
+        global t0
         if msg is None:
             if not self.remove_node:
                 print(tree.current_port, "reconnect leader on message...")
@@ -357,6 +365,12 @@ class LeaderConnector(object):
             view_no = seq[2]
             txid = seq[3]
             block_hash = seq[4]
+
+            if not t0:
+                t0 = time.time()
+            if t0:
+                print(time.time()-t0)
+
             # verify blockhash with own blockhash for txid
             forward(["PBFT_C", view, view_no, txid, current_view])
             return
@@ -375,7 +389,7 @@ class LeaderConnector(object):
                 confirms.add(confirm_view)
                 # print(tree.current_port, current_view, confirms, transaction)
                 if transaction and len(confirms)==2:
-                    print(tree.current_port, "NEW_TX_BLOCK", txid)
+                    # print(tree.current_port, "NEW_TX_BLOCK", txid)
                     message = ["NEW_TX_BLOCK", transaction, time.time(), uuid.uuid4().hex]
                     forward(message)
             return
