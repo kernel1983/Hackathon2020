@@ -237,6 +237,8 @@ class LeaderHandler(tornado.websocket.WebSocketHandler):
             # print(current_port, "PBFT_O get message", seq[1])
             view = seq[1]
             view_no = seq[2]
+            # if view_no % 3 != current_view - system_view - 1:
+            #     return
             # view's no should be continuous
             transaction = seq[3]
             txid = transaction["transaction"]["txid"]
@@ -295,7 +297,7 @@ class LeaderConnector(object):
     def __init__(self, to_host, to_port):
         self.host = to_host
         self.port = to_port
-        self.ws_uri = "ws://%s:%s/leader?host=%s&port=%s" % (self.host, self.port, tree.current_host, current_port)
+        self.ws_uri = "ws://%s:%s/leader?host=%s&port=%s" % (self.host, self.port, current_host, current_port)
         # self.branch = None
         self.remove_node = False
         self.conn = None
@@ -330,7 +332,7 @@ class LeaderConnector(object):
         if msg is None:
             if not self.remove_node:
                 print(current_port, "reconnect leader on message...")
-                # self.ws_uri = "ws://%s:%s/leader?host=%s&port=%s" % (self.host, self.port, tree.current_host, current_port)
+                # self.ws_uri = "ws://%s:%s/leader?host=%s&port=%s" % (self.host, self.port, current_host, current_port)
                 tornado.ioloop.IOLoop.instance().call_later(1.0, self.connect)
             return
 
@@ -345,6 +347,8 @@ class LeaderConnector(object):
             # print(current_port, "PBFT_O get message", seq[1])
             view = seq[1]
             view_no = seq[2]
+            # if view_no % 3 != current_view - system_view - 1:
+            #     return
             # view's no should be continuous
             transaction = seq[3]
             txid = transaction["transaction"]["txid"]
@@ -535,6 +539,7 @@ def main():
 if __name__ == '__main__':
     # main()
     # print("run python node.py pls")
+    current_host = "127.0.0.1"
     current_port = "8004"
     server = Application()
     server.listen(current_port)

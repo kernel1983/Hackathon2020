@@ -21,15 +21,10 @@ import tornado.httpclient
 import tornado.gen
 import tornado.escape
 
+# from numba import jit
+
 import setting
 import database
-
-working = False
-system_view = None
-current_view = None
-current_view_no = 0
-view_transactions = {}
-view_confirms = {}
 
 root_jump = {}
 def lastest_block(root_hash):
@@ -113,12 +108,12 @@ def new_tx_block(seq):
 
     try:
         sql = "INSERT INTO graph"+current_port+" (txid, timestamp, hash, from_block, to_block, sender, receiver, nonce, data) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
-        # database.connection.execute(sql, txid, int(timestamp), block_hash, from_block, to_block, sender, receiver, nonce, tornado.escape.json_encode(transaction))
+        database.connection.execute(sql, txid, int(timestamp), block_hash, from_block, to_block, sender, receiver, nonce, tornado.escape.json_encode(transaction))
 
-        if sender in locked_accounts:
-            locked_accounts.remove(sender)
-        if receiver in locked_accounts:
-            locked_accounts.remove(receiver)
+        if sender in Leader.locked_accounts:
+            Leader.locked_accounts.remove(sender)
+        if receiver in Leader.locked_accounts:
+            Leader.locked_accounts.remove(receiver)
 
         # for tx in transactions:
         #     if tx["transaction"]["txid"] == txid:
@@ -249,7 +244,7 @@ class LeaderHandler(tornado.websocket.WebSocketHandler):
             # gen block
             block_hash = transaction["block_hash"]
             k = "%s_%s"%(int(view), int(view_no))
-            view_transactions[k] = transaction
+            Leader.view_transactions[k] = transaction
             forward(["PBFT_P", view, view_no, txid, block_hash])
             return
 
@@ -259,7 +254,7 @@ class LeaderHandler(tornado.websocket.WebSocketHandler):
             txid = seq[3]
             block_hash = seq[4]
             # verify blockhash with own blockhash for txid
-            forward(["PBFT_C", view, view_no, txid, current_view])
+            forward(["PBFT_C", view, view_no, txid, Leader.current_view])
             return
 
         elif seq[0] == "PBFT_C":
@@ -269,9 +264,9 @@ class LeaderHandler(tornado.websocket.WebSocketHandler):
             confirm_view = seq[4]
 
             k = "%s_%s"%(int(view), int(view_no))
-            transaction = view_transactions.get(k)
-            view_confirms.setdefault(k, set())
-            confirms = view_confirms[k]
+            transaction = Leader.view_transactions.get(k)
+            Leader.view_confirms.setdefault(k, set())
+            confirms = Leader.view_confirms[k]
             if confirm_view not in confirms:
                 confirms.add(confirm_view)
                 # print(current_port, current_view, confirms, transaction)
@@ -295,7 +290,7 @@ class LeaderConnector(object):
     def __init__(self, to_host, to_port):
         self.host = to_host
         self.port = to_port
-        self.ws_uri = "ws://%s:%s/leader?host=%s&port=%s" % (self.host, self.port, tree.current_host, current_port)
+        self.ws_uri = "ws://%s:%s/leader?host=%s&port=%s" % (self.host, self.port, current_host, current_port)
         # self.branch = None
         self.remove_node = False
         self.conn = None
@@ -329,7 +324,7 @@ class LeaderConnector(object):
         if msg is None:
             if not self.remove_node:
                 print(current_port, "reconnect leader on message...")
-                # self.ws_uri = "ws://%s:%s/leader?host=%s&port=%s" % (self.host, self.port, tree.current_host, current_port)
+                # self.ws_uri = "ws://%s:%s/leader?host=%s&port=%s" % (self.host, self.port, current_host, current_port)
                 tornado.ioloop.IOLoop.instance().call_later(1.0, self.connect)
             return
 
@@ -350,7 +345,7 @@ class LeaderConnector(object):
             # gen block
             block_hash = transaction["block_hash"]
             k = "%s_%s"%(int(view), int(view_no))
-            view_transactions[k] = transaction
+            Leader.view_transactions[k] = transaction
             forward(["PBFT_P", view, view_no, txid, block_hash])
             return
 
@@ -360,7 +355,7 @@ class LeaderConnector(object):
             txid = seq[3]
             block_hash = seq[4]
             # verify blockhash with own blockhash for txid
-            forward(["PBFT_C", view, view_no, txid, current_view])
+            forward(["PBFT_C", view, view_no, txid, Leader.current_view])
             return
 
         elif seq[0] == "PBFT_C":
@@ -370,9 +365,9 @@ class LeaderConnector(object):
             confirm_view = seq[4]
 
             k = "%s_%s"%(int(view), int(view_no))
-            transaction = view_transactions.get(k)
-            view_confirms.setdefault(k, set())
-            confirms = view_confirms[k]
+            transaction = Leader.view_transactions.get(k)
+            Leader.view_confirms.setdefault(k, set())
+            confirms = Leader.view_confirms[k]
             if confirm_view not in confirms:
                 confirms.add(confirm_view)
                 # print(current_port, current_view, confirms, transaction)
@@ -445,79 +440,90 @@ class LeaderConnector(object):
         # else:
         forward(seq)
 
-transactions = []
-locked_accounts = set()
 # block_to_confirm = {}
 # block_to_reply = {}
-def mining():
-    global working
-    global transactions
-    global locked_accounts
-    global current_view_no
-    global view_transactions
+class Leader(object):
+    working = False
+    system_view = None
+    current_view = None
+    current_view_no = 0
+    view_transactions = {}
+    view_confirms = {}
 
-    delayed_transactions = []
-    t0 = None
-    if transactions:
-        t0 = time.time()
-        print('start', t0)
-    while True:
-        if not transactions:
-            break
-        # print(current_port, "I'm the leader", current_view, "of leader view", system_view)
-        seq = transactions.pop(0)
-        transaction = seq[1]
-        txid = transaction["transaction"]["txid"]
-        if current_view != system_view:
-            tx = database.connection.get("SELECT * FROM graph"+current_port+" WHERE txid = %s LIMIT 1", txid)
-            if not tx:
+    transactions = []
+    locked_accounts = set()
+
+    @classmethod
+    # @jit
+    def mining(self):
+        # global working
+        # global transactions
+        # global locked_accounts
+        # global current_view_no
+        # global view_transactions
+
+        delayed_transactions = []
+        t0 = None
+        if self.transactions:
+            t0 = time.time()
+            print('start', t0)
+        while True:
+            if not self.transactions:
+                break
+            # print(current_port, "I'm the leader", current_view, "of leader view", system_view)
+            seq = self.transactions.pop(0)
+            transaction = seq[1]
+            txid = transaction["transaction"]["txid"]
+            if self.current_view != self.system_view:
+                tx = database.connection.get("SELECT * FROM graph"+current_port+" WHERE txid = %s LIMIT 1", txid)
+                if not tx:
+                    new_transactions.append(seq)
+                continue
+            sender = transaction["transaction"]["sender"]
+            receiver = transaction["transaction"]["receiver"]
+            amount = transaction["transaction"]["amount"]
+            timestamp = transaction["transaction"]["timestamp"]
+            signature = transaction["signature"]
+
+            if sender in self.locked_accounts or receiver in self.locked_accounts:
                 new_transactions.append(seq)
-            continue
-        sender = transaction["transaction"]["sender"]
-        receiver = transaction["transaction"]["receiver"]
-        amount = transaction["transaction"]["amount"]
-        timestamp = transaction["transaction"]["timestamp"]
-        signature = transaction["signature"]
+                # print(current_port, "put tx back", txid, len(transactions))
+                continue
+            self.locked_accounts.add(sender)
+            self.locked_accounts.add(receiver)
+            # print(current_port, "locked_accounts", locked_accounts)
 
-        if sender in locked_accounts or receiver in locked_accounts:
-            new_transactions.append(seq)
-            # print(current_port, "put tx back", txid, len(transactions))
-            continue
-        locked_accounts.add(sender)
-        locked_accounts.add(receiver)
-        # print(current_port, "locked_accounts", locked_accounts)
+            # sender_blocks = lastest_block(sender)
+            # receiver_blocks = lastest_block(receiver)
 
-        # sender_blocks = lastest_block(sender)
-        # receiver_blocks = lastest_block(receiver)
+            # from_block = sender_blocks[-1] if sender_blocks else sender
+            # to_block = receiver_blocks[-1] if receiver_blocks else receiver
+            from_block = sender
+            to_block = receiver
 
-        # from_block = sender_blocks[-1] if sender_blocks else sender
-        # to_block = receiver_blocks[-1] if receiver_blocks else receiver
-        from_block = sender
-        to_block = receiver
+            nonce = 0
+            data = txid + sender + receiver + str(amount) + str(timestamp) + signature + from_block + to_block + str(current_port)
+            # block_hash = hashlib.sha256((data + str(nonce)).encode('utf8')).hexdigest()
+            block_hash = sender+receiver
+            transaction["block_hash"] = block_hash
+            transaction["nonce"] = nonce
+            transaction["from_block"] = from_block
+            transaction["to_block"] = to_block
 
-        nonce = 0
-        data = txid + sender + receiver + str(amount) + str(timestamp) + signature + from_block + to_block + str(current_port)
-        # block_hash = hashlib.sha256((data + str(nonce)).encode('utf8')).hexdigest()
-        block_hash = sender+receiver
-        transaction["block_hash"] = block_hash
-        transaction["nonce"] = nonce
-        transaction["from_block"] = from_block
-        transaction["to_block"] = to_block
+            self.current_view_no += 1
+            k = "%s_%s"%(int(self.current_view), int(self.current_view_no))
+            self.view_transactions[k] = transaction
+            message = ["PBFT_O", self.current_view, self.current_view_no, transaction]
+            forward(message)
 
-        current_view_no += 1
-        k = "%s_%s"%(int(current_view), int(current_view_no))
-        view_transactions[k] = transaction
-        message = ["PBFT_O", current_view, current_view_no, transaction]
-        forward(message)
+        if t0:
+            t1 = time.time()
+            print('end', t1-t0)
 
-    if t0:
-        t1 = time.time()
-        print('end', t1-t0)
-
-    transactions = delayed_transactions
-    if working:
-        tornado.ioloop.IOLoop.instance().add_callback(mining)
-        # tornado.ioloop.IOLoop.instance().call_later(1, mining)
+        self.transactions = delayed_transactions
+        if self.working:
+            tornado.ioloop.IOLoop.instance().add_callback(Leader.mining)
+            # tornado.ioloop.IOLoop.instance().call_later(1, mining)
 
 
 class NewTxHandler(tornado.web.RequestHandler):
@@ -545,13 +551,13 @@ class NewTxHandler(tornado.web.RequestHandler):
 
             print("gen tx", n)
             msg = ["NEW_TX", data, time.time(), uuid.uuid4().hex]
-            transactions.append(msg)
+            Leader.transactions.append(msg)
 
 
     def post(self):
         tx = tornado.escape.json_decode(self.request.body)
         msg = ["NEW_TX", tx, time.time(), uuid.uuid4().hex]
-        transactions.append(msg)
+        Leader.transactions.append(msg)
         self.finish({"txid": tx["transaction"]["txid"]})
 
 class Application(tornado.web.Application):
@@ -567,12 +573,13 @@ class Application(tornado.web.Application):
 if __name__ == '__main__':
     # main()
     # print("run python node.py pls")
+    current_host = "127.0.0.1"
     current_port = "8001"
     server = Application()
     server.listen(current_port)
     # tornado.ioloop.IOLoop.instance().add_callback(tree.connect)
-    working = True
-    system_view = 1
-    current_view = 1
-    tornado.ioloop.IOLoop.instance().add_callback(mining)
+    Leader.working = True
+    Leader.system_view = 1
+    Leader.current_view = 1
+    tornado.ioloop.IOLoop.instance().add_callback(Leader.mining)
     tornado.ioloop.IOLoop.instance().start()
