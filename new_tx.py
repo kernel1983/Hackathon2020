@@ -30,7 +30,7 @@ transactions = []
 
 def tx():
     # known_addresses_list = list(ControlHandler.known_addresses)
-    known_addresses_list = [("192.168.1.4", "8002")]
+    known_addresses_list = [("127.0.0.1", "8001")]
     addr = random.choice(known_addresses_list)
 
     print(len(transactions), addr)
@@ -55,17 +55,19 @@ def main():
         users[n] = user_sk
         print("load key", n)
 
-    for n in range(0, count*2, 2):
+    for n in range(count):
         # user_nos = set(range(USER_NO))
         # i = random.choice(list(user_nos))
-        sender_sk = users[n%USER_NO]
+        sender_sk = users[(n*2)%USER_NO]
         sender_vk = sender_sk.get_verifying_key()
         sender = base64.b64encode(sender_vk.to_string()).decode()
+        # sender = str(n*2)
 
         # j = random.choice(list(user_nos - set([i])))
-        receiver_sk = users[n%USER_NO+1]
+        receiver_sk = users[(n*2+1)%USER_NO]
         receiver_vk = receiver_sk.get_verifying_key()
         receiver = base64.b64encode(receiver_vk.to_string()).decode()
+        # receiver = str(n*2+1)
 
         amount = random.randint(1, 20)
         txid = uuid.uuid4().hex
@@ -78,7 +80,8 @@ def main():
             "amount": amount
         }
         # sender_sign = signing.Signer(sender_sk)
-        signature = sender_sk.sign(str(timestamp).encode("utf8"))
+        # signature = sender_sk.sign(str(timestamp).encode("utf8"))
+        signature = str(n).encode('utf8')
         data = {
             "transaction": transaction,
             "signature": base64.b64encode(signature).decode()

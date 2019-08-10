@@ -106,9 +106,13 @@ def new_tx_block(seq):
     from_block = transaction["from_block"]
     to_block = transaction["to_block"]
 
+    sender_bin = bin(int.from_bytes(base64.b64decode(sender), 'big'))[2:].zfill(16)
+    receiver_bin = bin(int.from_bytes(base64.b64decode(receiver), 'big'))[2:].zfill(16)
+    node_bin = bin(Leader.current_view - 1)[2:].zfill(2)
     try:
-        sql = "INSERT INTO graph"+current_port+" (txid, timestamp, hash, from_block, to_block, sender, receiver, nonce, data) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
-        database.connection.execute(sql, txid, int(timestamp), block_hash, from_block, to_block, sender, receiver, nonce, tornado.escape.json_encode(transaction))
+        if sender_bin.endswith(node_bin) or receiver_bin.endswith(node_bin):
+            sql = "INSERT INTO graph"+current_port+" (txid, timestamp, hash, from_block, to_block, sender, receiver, nonce, data) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
+            database.connection.execute(sql, txid, int(timestamp), block_hash, from_block, to_block, sender, receiver, nonce, tornado.escape.json_encode(transaction))
 
         if sender in Leader.locked_accounts:
             Leader.locked_accounts.remove(sender)
@@ -470,6 +474,7 @@ class Leader(object):
         while True:
             if not self.transactions:
                 break
+            print(len(self.transactions))
             # print(current_port, "I'm the leader", current_view, "of leader view", system_view)
             seq = self.transactions.pop(0)
             transaction = seq[1]
@@ -477,7 +482,7 @@ class Leader(object):
             if self.current_view != self.system_view:
                 tx = database.connection.get("SELECT * FROM graph"+current_port+" WHERE txid = %s LIMIT 1", txid)
                 if not tx:
-                    new_transactions.append(seq)
+                    delayed_transactions.append(seq)
                 continue
             sender = transaction["transaction"]["sender"]
             receiver = transaction["transaction"]["receiver"]
@@ -486,7 +491,7 @@ class Leader(object):
             signature = transaction["signature"]
 
             if sender in self.locked_accounts or receiver in self.locked_accounts:
-                new_transactions.append(seq)
+                delayed_transactions.append(seq)
                 # print(current_port, "put tx back", txid, len(transactions))
                 continue
             self.locked_accounts.add(sender)
@@ -504,7 +509,7 @@ class Leader(object):
             nonce = 0
             data = txid + sender + receiver + str(amount) + str(timestamp) + signature + from_block + to_block + str(current_port)
             # block_hash = hashlib.sha256((data + str(nonce)).encode('utf8')).hexdigest()
-            block_hash = sender+receiver
+            block_hash = str(self.current_view_no)
             transaction["block_hash"] = block_hash
             transaction["nonce"] = nonce
             transaction["from_block"] = from_block
@@ -522,16 +527,16 @@ class Leader(object):
 
         self.transactions = delayed_transactions
         if self.working:
-            tornado.ioloop.IOLoop.instance().add_callback(Leader.mining)
-            # tornado.ioloop.IOLoop.instance().call_later(1, mining)
+            # tornado.ioloop.IOLoop.instance().add_callback(Leader.mining)
+            tornado.ioloop.IOLoop.instance().call_later(1, Leader.mining)
 
 
 class NewTxHandler(tornado.web.RequestHandler):
     def get(self):
         count = int(self.get_argument("n", 10000))
-        for n in range(0, count*2, 2):
-            sender = str(n)
-            receiver = str(n+1)
+        for n in range(count):
+            sender = base64.b64encode((n*2).to_bytes(2, 'big')).decode('utf8')
+            receiver = base64.b64encode((n*2+1).to_bytes(2, 'big')).decode('utf8')
 
             amount = random.randint(1, 20)
             txid = uuid.uuid4().hex
@@ -543,7 +548,7 @@ class NewTxHandler(tornado.web.RequestHandler):
                 "timestamp": timestamp,
                 "amount": amount
             }
-            signature = bytes(n)
+            signature = str(n).encode('utf8')
             data = {
                 "transaction": transaction,
                 "signature": base64.b64encode(signature).decode()
@@ -556,6 +561,7 @@ class NewTxHandler(tornado.web.RequestHandler):
 
     def post(self):
         tx = tornado.escape.json_decode(self.request.body)
+        print(tx["transaction"]["txid"])
         msg = ["NEW_TX", tx, time.time(), uuid.uuid4().hex]
         Leader.transactions.append(msg)
         self.finish({"txid": tx["transaction"]["txid"]})

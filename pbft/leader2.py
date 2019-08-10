@@ -6,6 +6,7 @@ sys.path.append("..")
 import time
 import uuid
 import hashlib
+import base64
 
 import tornado.web
 import tornado.websocket
@@ -104,9 +105,14 @@ def new_tx_block(seq):
     from_block = transaction["from_block"]
     to_block = transaction["to_block"]
 
+    sender_bin = bin(int.from_bytes(base64.b64decode(sender), 'big'))[2:].zfill(16)
+    receiver_bin = bin(int.from_bytes(base64.b64decode(receiver), 'big'))[2:].zfill(16)
+    node_bin = bin(current_view - 1)[2:].zfill(2)
+    # print(node_bin, sender_bin, receiver_bin)
     try:
-        sql = "INSERT INTO graph"+current_port+" (txid, timestamp, hash, from_block, to_block, sender, receiver, nonce, data) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
-        database.connection.execute(sql, txid, int(timestamp), block_hash, from_block, to_block, sender, receiver, nonce, tornado.escape.json_encode(transaction))
+        if sender_bin.endswith(node_bin) or receiver_bin.endswith(node_bin):
+            sql = "INSERT INTO graph"+current_port+" (txid, timestamp, hash, from_block, to_block, sender, receiver, nonce, data) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
+            database.connection.execute(sql, txid, int(timestamp), block_hash, from_block, to_block, sender, receiver, nonce, tornado.escape.json_encode(transaction))
 
         if sender in locked_accounts:
             locked_accounts.remove(sender)
@@ -467,7 +473,8 @@ def mining():
     global current_view_no
     global view_transactions
     if working:
-        tornado.ioloop.IOLoop.instance().add_callback(mining)
+        # tornado.ioloop.IOLoop.instance().add_callback(mining)
+        tornado.ioloop.IOLoop.instance().call_later(1, mining)
 
     if transactions:
         # print(current_port, "I'm the leader", current_view, "of leader view", system_view)
