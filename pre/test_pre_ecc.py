@@ -1,0 +1,87 @@
+from __future__ import print_function
+
+import random
+from hashlib import sha1, sha256, sha512
+
+# import numbertheory
+import util
+
+from keys import SigningKey, VerifyingKey
+
+
+skA = SigningKey.generate()
+skB = SigningKey.generate()
+
+# D = (g^a)^t, t = H(a, V)
+# V = g^v
+# E = g^r
+# F = H(g^t*E)) xor m
+# s = r + a*H(m, E)
+
+l192 = 2**192-1
+l160 = 2**160-1
+
+# V = g^v
+v = random.randrange(1, l192)
+V = skA.privkey.public_key.point * v
+print('V', V)
+
+
+# D = (g^a)^t, t = H(a, V)
+a = skA.privkey.secret_multiplier
+print('a', a)
+# print('a in bytes', util.number_to_string(a, l192))
+d = sha1()
+d.update(util.number_to_string(a, l192))
+d.update(util.number_to_string(V.x(), l192))
+t = util.string_to_number(d.digest())
+print('t = H(a,V)', t)
+D = skA.privkey.public_key.point * t
+print('D', D)
+
+
+# E = g^r
+r = random.randrange(1, l192)
+E = skA.privkey.public_key.point * r
+print('E', E)
+
+
+# F = H(g^t*E)) xor m
+m = b'This is the PRE!1234'
+i = util.string_to_number(m)
+gt = skA.curve.generator * t
+d = sha1()
+d.update(util.number_to_string((gt + E).x(), l192))
+k = util.string_to_number(d.digest())
+c = i^k
+print('k', k)
+F = util.number_to_string(c, l160)
+print('F', F)
+print('m', util.number_to_string(c^k, l160))
+
+
+# s = r + a*H(m, E)
+
+
+# A generates the key DB replacing D
+b = skB.privkey.secret_multiplier
+# DB = skB.curve.generator * (b + t)
+DB = skB.privkey.public_key.point + skB.curve.generator * t
+# print('DB', DB)
+
+
+# B using the skB and DB to get g^t
+# g^t = DB^(1/b)
+gt = DB + skB.curve.generator * -b
+# print('gt', gt)
+# print('gt', skB.curve.generator*t)
+# print('gt', gt == skB.curve.generator * t)
+
+# B decode
+d = sha1()
+d.update(util.number_to_string((gt+E).x(), l192))
+k = util.string_to_number(d.digest())
+print('k', k)
+c = util.string_to_number(F)
+print('F', F)
+print('m', util.number_to_string(c^k, l160))
