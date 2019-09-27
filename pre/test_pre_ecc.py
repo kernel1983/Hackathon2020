@@ -42,7 +42,7 @@ print('D', D)
 
 # E = g^r
 r = random.randrange(1, l192)
-E = skA.privkey.public_key.point * r
+E = skA.curve.generator * r
 print('E', E)
 
 
@@ -61,6 +61,19 @@ print('m', util.number_to_string(c^k, l160))
 
 
 # s = r + a*H(m, E)
+d = sha1()
+d.update(m)
+d.update(util.number_to_string(E.x(), l192))
+h = util.string_to_number(d.digest())
+s = r + a * h
+print('s', s)
+
+
+# E+pk*H(m,E) = E+g*a*h = g*r+g*a*h = g*(r+a*h)
+# g*s = g*(r+a*h)
+print('g^s', skA.curve.generator * s)
+print('E*pk^H(m,E)', E + skA.curve.generator*(a*h))
+print('g^s ?= E*pk^H(m,E)', skA.curve.generator * s == E + skA.curve.generator*(a*h))
 
 
 # A generates the key DB replacing D
