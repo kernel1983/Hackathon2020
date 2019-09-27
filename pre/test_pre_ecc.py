@@ -6,11 +6,11 @@ from hashlib import sha1, sha256, sha512
 # import numbertheory
 import util
 
-from keys import SigningKey, VerifyingKey
+from keys import PrivateKey, PublicKey
 
 
-skA = SigningKey.generate()
-skB = SigningKey.generate()
+skA = PrivateKey.generate()
+skB = PrivateKey.generate()
 
 # D = (g^a)^t, t = H(a, V)
 # V = g^v
@@ -24,7 +24,7 @@ l160 = 2**160-1
 # V = g^v
 v = random.randrange(1, l192)
 V = skA.privkey.public_key.point * v
-print('V', V)
+print('V = g^v', V)
 
 
 # D = (g^a)^t, t = H(a, V)
@@ -37,13 +37,13 @@ d.update(util.number_to_string(V.x(), l192))
 t = util.string_to_number(d.digest())
 print('t = H(a,V)', t)
 D = skA.privkey.public_key.point * t
-print('D', D)
+print('D = (g^a)^t', D)
 
 
 # E = g^r
 r = random.randrange(1, l192)
 E = skA.curve.generator * r
-print('E', E)
+print('E = g^r', E)
 
 
 # F = H(g^t*E)) xor m
@@ -56,7 +56,7 @@ k = util.string_to_number(d.digest())
 c = i^k
 print('k', k)
 F = util.number_to_string(c, l160)
-print('F', F)
+print('F = H(g^t*E)) xor m', F)
 print('m', util.number_to_string(c^k, l160))
 
 
@@ -66,7 +66,7 @@ d.update(m)
 d.update(util.number_to_string(E.x(), l192))
 h = util.string_to_number(d.digest())
 s = r + a * h
-print('s', s)
+print('s = r + a*H(m, E)', s)
 
 
 # E+pk*H(m,E) = E+g*a*h = g*r+g*a*h = g*(r+a*h)

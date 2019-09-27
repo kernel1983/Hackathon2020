@@ -16,10 +16,10 @@ class BadSignatureError(Exception):
 class BadDigestError(Exception):
     pass
 
-class VerifyingKey:
+class PublicKey:
     def __init__(self, _error__please_use_generate=None):
         if not _error__please_use_generate:
-            raise TypeError("Please use SigningKey.generate() to construct me")
+            raise TypeError("Please use PrivateKey.generate() to construct me")
 
     @classmethod
     def from_public_point(klass, point, curve=NIST192p, hashfunc=sha1):
@@ -76,7 +76,7 @@ class VerifyingKey:
         return klass.from_string(point_str[2:], curve)
 
     def to_string(self):
-        # VerifyingKey.from_string(vk.to_string()) == vk as long as the
+        # PublicKey.from_string(vk.to_string()) == vk as long as the
         # curves are the same: the curve itself is not included in the
         # serialized form
         order = self.pubkey.order
@@ -113,10 +113,10 @@ class VerifyingKey:
             return True
         raise BadSignatureError
 
-class SigningKey:
+class PrivateKey:
     def __init__(self, _error__please_use_generate=None):
         if not _error__please_use_generate:
-            raise TypeError("Please use SigningKey.generate() to construct me")
+            raise TypeError("Please use PrivateKey.generate() to construct me")
 
     @classmethod
     def generate(klass, curve=NIST192p, entropy=None, hashfunc=sha1):
@@ -126,7 +126,7 @@ class SigningKey:
     # to create a signing key from a short (arbitrary-length) seed, convert
     # that seed into an integer with something like
     # secexp=util.randrange_from_seed__X(seed, curve.order), and then pass
-    # that integer into SigningKey.from_secret_exponent(secexp, curve)
+    # that integer into PrivateKey.from_secret_exponent(secexp, curve)
 
     @classmethod
     def from_secret_exponent(klass, secexp, curve=NIST192p, hashfunc=sha1):
@@ -139,7 +139,7 @@ class SigningKey:
         pubkey_point = curve.generator*secexp
         pubkey = Public_key(curve.generator, pubkey_point)
         pubkey.order = n
-        self.verifying_key = VerifyingKey.from_public_point(pubkey_point, curve,
+        self.verifying_key = PublicKey.from_public_point(pubkey_point, curve,
                                                             hashfunc)
         self.privkey = Private_key(pubkey, secexp)
         self.privkey.order = n
