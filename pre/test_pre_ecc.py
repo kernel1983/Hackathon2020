@@ -1,7 +1,7 @@
 from __future__ import print_function
 
 import random
-from hashlib import sha1, sha256, sha512
+from hashlib import blake2b
 
 # import numbertheory
 import util
@@ -20,6 +20,7 @@ skB = PrivateKey.generate()
 
 l192 = 2**192-1
 l160 = 2**160-1
+l512 = 2**512-1
 
 # V = g^v
 v = random.randrange(1, l192)
@@ -31,7 +32,7 @@ print('V = g^v', V)
 a = skA.privkey.secret_multiplier
 print('a', a)
 # print('a in bytes', util.number_to_string(a, l192))
-d = sha1()
+d = blake2b()
 d.update(util.number_to_string(a, l192))
 d.update(util.number_to_string(V.x(), l192))
 t = util.string_to_number(d.digest())
@@ -47,21 +48,21 @@ print('E = g^r', E)
 
 
 # F = H(g^t*E)) xor m
-m = b'This is the PRE!1234'
+m = b'This is the PRE!This is the PRE!This is the PRE!This is the PRE!' #64bytes
 i = util.string_to_number(m)
 gt = skA.curve.generator * t
-d = sha1()
+d = blake2b()
 d.update(util.number_to_string((gt + E).x(), l192))
 k = util.string_to_number(d.digest())
 c = i^k
 print('k', k)
-F = util.number_to_string(c, l160)
+F = util.number_to_string(c, l512)
 print('F = H(g^t*E)) xor m', F)
-print('m', util.number_to_string(c^k, l160))
+print('m', util.number_to_string(c^k, l512))
 
 
 # s = r + a*H(m, E)
-d = sha1()
+d = blake2b()
 d.update(m)
 d.update(util.number_to_string(E.x(), l192))
 h = util.string_to_number(d.digest())
@@ -91,10 +92,10 @@ gt = DB + skB.curve.generator * -b
 # print('gt', gt == skB.curve.generator * t)
 
 # B decode
-d = sha1()
+d = blake2b()
 d.update(util.number_to_string((gt+E).x(), l192))
 k = util.string_to_number(d.digest())
 print('k', k)
 c = util.string_to_number(F)
 print('F', F)
-print('m', util.number_to_string(c^k, l160))
+print('m', util.number_to_string(c^k, l512))
