@@ -500,6 +500,9 @@ def bootstrap(addr):
         response = yield http_client.fetch("http://%s:%s/available_branches" % tuple(addr))
     except Exception as e:
         print("Error: %s" % e)
+        tornado.ioloop.IOLoop.instance().call_later(1.0, functools.partial(bootstrap, addr))
+        return
+
     result = tornado.escape.json_decode(response.body)
     branches = result["available_branches"]
     branches.sort(key=lambda l:len(l[2]))

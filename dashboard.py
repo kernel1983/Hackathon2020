@@ -66,21 +66,27 @@ class Application(tornado.web.Application):
         tornado.web.Application.__init__(self, handlers, **settings)
 
 class NewNodeHandler(tornado.web.RequestHandler):
-    @tornado.web.asynchronous
+    # @tornado.web.asynchronous
     def get(self):
-        self.count = int(self.get_argument("n", "1"))
-        tornado.ioloop.IOLoop.instance().call_later(1, self.add)
-
-    def add(self):
         global incremental_port
-        if self.count <= 0:
-            self.finish()
-            return
-        self.count -= 1
-        incremental_port += 1
-        subprocess.Popen(["python", "node.py", "--host=%s"%control_host, "--port=%s"%incremental_port, "--control_host=%s"%control_host, "--control_port=%s"%control_port], shell=False)
-        self.write("new node %s\n" % incremental_port)
-        tornado.ioloop.IOLoop.instance().call_later(2, self.add)
+        self.count = int(self.get_argument("n", "1"))
+        for i in range(self.count):
+            incremental_port += 1
+            subprocess.Popen(["python3", "node.py", "--host=%s"%control_host, "--port=%s"%incremental_port, "--control_host=%s"%control_host, "--control_port=%s"%control_port], shell=False)
+            self.write("new node %s\n" % incremental_port)
+
+    #     tornado.ioloop.IOLoop.instance().call_later(1, self.add)
+
+    # def add(self):
+    #     global incremental_port
+    #     if self.count <= 0:
+    #         self.finish()
+    #         return
+    #     self.count -= 1
+    #     incremental_port += 1
+    #     subprocess.Popen(["python3", "node.py", "--host=%s"%control_host, "--port=%s"%incremental_port, "--control_host=%s"%control_host, "--control_port=%s"%control_port], shell=False)
+    #     self.write("new node %s\n" % incremental_port)
+    #     tornado.ioloop.IOLoop.instance().call_later(2, self.add)
 
 class NewTxHandler(tornado.web.RequestHandler):
     @tornado.web.asynchronous
@@ -391,7 +397,8 @@ class DashboardHandler(tornado.web.RequestHandler):
         self.finish()
 
 class ControlHandler(tornado.websocket.WebSocketHandler):
-    known_addresses = dict()
+    known_addresses = {}
+    # bootstrap_msg_cache = {}
 
     # def data_received(self, chunk):
     #     print("data received")
@@ -423,11 +430,16 @@ class ControlHandler(tornado.websocket.WebSocketHandler):
             known_addresses_list = list(ControlHandler.known_addresses)
             random.shuffle(known_addresses_list)
             # known_addresses_list.sort(key=lambda l:int(l[1]))
-            self.write_message(tornado.escape.json_encode(["BOOTSTRAP_ADDRESS", known_addresses_list[:3]]))
+            bootstrap_msg = tornado.escape.json_encode(["BOOTSTRAP_ADDRESS", known_addresses_list[:3]])
+            # if self.addr in self.bootstrap_msg_cache:
+            #     bootstrap_msg = self.bootstrap_msg_cache[self.addr]
+            # else:
+            #     self.bootstrap_msg_cache[self.addr] = bootstrap_msg
+            self.write_message(bootstrap_msg)
             ControlHandler.known_addresses[self.addr] = self
             # print(ControlHandler.known_addresses)
-        elif seq[0] == "ADDRESS2":
-            pass
+        # elif seq[0] == "ADDRESS2":
+        #     pass
 
         for w in VisualizeDataHandler.waiters:
             w.write_message(msg)
@@ -474,10 +486,10 @@ class VisualizeDataHandler(tornado.websocket.WebSocketHandler):
         # self.write("<br>current_groupid: %s <br>" % message)
         VisualizeDataHandler.send_updates(message)
 
-def boot():
-    # os.system("curl 127.0.0.1:8000/new_node?n=9")
-    http_client = tornado.httpclient.AsyncHTTPClient()
-    http_client.fetch("http://127.0.0.1:8000/new_node?n=9", method="GET")
+# def boot():
+#     # os.system("curl 127.0.0.1:8000/new_node?n=9")
+#     http_client = tornado.httpclient.AsyncHTTPClient()
+#     http_client.fetch("http://127.0.0.1:8000/new_node?n=9", method="GET")
 
 def main():
     global control_host
@@ -493,7 +505,7 @@ def main():
 
     server = Application()
     server.listen(control_port)
-    tornado.ioloop.IOLoop.instance().call_later(2, boot)
+    # tornado.ioloop.IOLoop.instance().call_later(2, boot)
     tornado.ioloop.IOLoop.instance().start()
 
 
