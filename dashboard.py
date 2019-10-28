@@ -66,13 +66,13 @@ class Application(tornado.web.Application):
         tornado.web.Application.__init__(self, handlers, **settings)
 
 class NewNodeHandler(tornado.web.RequestHandler):
-    # @tornado.web.asynchronous
+    # @tornado.gen.coroutine
     def get(self):
         global incremental_port
         self.count = int(self.get_argument("n", "1"))
         for i in range(self.count):
             incremental_port += 1
-            subprocess.Popen(["python3", "node.py", "--host=%s"%control_host, "--port=%s"%incremental_port, "--control_host=%s"%control_host, "--control_port=%s"%control_port], shell=False)
+            subprocess.Popen(["python", "node.py", "--host=%s"%control_host, "--port=%s"%incremental_port, "--control_host=%s"%control_host, "--control_port=%s"%control_port], shell=False)
             self.write("new node %s\n" % incremental_port)
 
     #     tornado.ioloop.IOLoop.instance().call_later(1, self.add)
@@ -84,13 +84,12 @@ class NewNodeHandler(tornado.web.RequestHandler):
     #         return
     #     self.count -= 1
     #     incremental_port += 1
-    #     subprocess.Popen(["python3", "node.py", "--host=%s"%control_host, "--port=%s"%incremental_port, "--control_host=%s"%control_host, "--control_port=%s"%control_port], shell=False)
+    #     subprocess.Popen(["python", "node.py", "--host=%s"%control_host, "--port=%s"%incremental_port, "--control_host=%s"%control_host, "--control_port=%s"%control_port], shell=False)
     #     self.write("new node %s\n" % incremental_port)
     #     tornado.ioloop.IOLoop.instance().call_later(2, self.add)
 
 class NewTxHandler(tornado.web.RequestHandler):
-    @tornado.web.asynchronous
-    # @tornado.gen.coroutine
+    @tornado.gen.coroutine
     def get(self):
         USER_NO = 100
         self.count = int(self.get_argument("n", "1"))
@@ -162,8 +161,7 @@ class NewTxHandler(tornado.web.RequestHandler):
 
 
 class NewTx2Handler(tornado.web.RequestHandler):
-    @tornado.web.asynchronous
-    # @tornado.gen.coroutine
+    @tornado.gen.coroutine
     def get(self):
         USER_NO = 100
         self.count = int(self.get_argument("n", "1"))

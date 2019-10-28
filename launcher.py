@@ -37,7 +37,7 @@ class Application(tornado.web.Application):
         tornado.web.Application.__init__(self, handlers, **settings)
 
 class NewNodeHandler(tornado.web.RequestHandler):
-    @tornado.web.asynchronous
+    @tornado.gen.coroutine
     def get(self):
         self.count = int(self.get_argument("n", "1"))
         tornado.ioloop.IOLoop.instance().call_later(1, self.add)
