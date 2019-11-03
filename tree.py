@@ -527,6 +527,13 @@ def on_message(msg):
         return
 
     seq = tornado.escape.json_decode(msg)
+
+    if setting.BOOTSTRAP_BY_PORT_NO and int(current_port) > 8001:
+        no = int(current_port) - 8000
+        port = (no >> 1) + 8000
+        NodeConnector('127.0.0.1', port, bin(no)[3:])
+        return
+
     print(current_port, "node on message", seq)
     if seq[0] == "BOOTSTRAP_ADDRESS":
         if not seq[1]:
