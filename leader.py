@@ -3,6 +3,7 @@ from __future__ import print_function
 import time
 import uuid
 import hashlib
+import base64
 
 import tornado.web
 import tornado.websocket
@@ -15,6 +16,8 @@ import setting
 import tree
 import node
 import database
+
+from ecdsa.util import string_to_number
 
 certain_value = "0"
 certain_value = certain_value + 'f'*(64-len(certain_value))
@@ -105,9 +108,21 @@ def new_tx_block(seq):
     from_block = transaction["from_block"]
     to_block = transaction["to_block"]
 
+    related_block = True
+    if setting.NODE_DIVISION:
+        sender_bytes = base64.b64decode(sender.encode('utf8'))
+        sender_binary = bin(string_to_number(sender_bytes))[2:]
+        # print(tree.current_port, "sender", sender_binary)
+        receiver_bytes = base64.b64decode(receiver.encode('utf8'))
+        receiver_binary = bin(string_to_number(receiver_bytes))[2:]
+        # print(tree.current_port, "receiver", receiver_binary)
+        if not sender_binary.startswith(tree.current_groupid) and not receiver_binary.startswith(tree.current_groupid):
+            related_block = False
+
     try:
-        sql = "INSERT INTO graph"+tree.current_port+" (txid, timestamp, hash, from_block, to_block, sender, receiver, nonce, data) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
-        database.connection.execute(sql, txid, int(timestamp), block_hash, from_block, to_block, sender, receiver, nonce, tornado.escape.json_encode(transaction))
+        if related_block:
+            sql = "INSERT INTO graph"+tree.current_port+" (txid, timestamp, hash, from_block, to_block, sender, receiver, nonce, data) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
+            database.connection.execute(sql, txid, int(timestamp), block_hash, from_block, to_block, sender, receiver, nonce, tornado.escape.json_encode(transaction))
 
         if sender in locked_accounts:
             locked_accounts.remove(sender)
