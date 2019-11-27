@@ -186,7 +186,7 @@ class LeaderHandler(tornado.websocket.WebSocketHandler):
         seq = tornado.escape.json_decode(msg)
         # print(tree.current_port, "on message from leader connector", seq)
 
-        if seq[0] == "NEW_BLOCK":
+        if seq[0] == "NEW_CHAIN_BLOCK":
             miner.new_block(seq)
 
         # elif seq[0] == "TX":
@@ -344,7 +344,7 @@ class LeaderConnector(object):
         seq = tornado.escape.json_decode(msg)
         # print(tree.current_port, "on message from leader", seq)
 
-        if seq[0] == "NEW_BLOCK":
+        if seq[0] == "NEW_CHAIN_BLOCK":
             miner.new_block(seq)
 
         elif seq[0] == "PBFT_O":

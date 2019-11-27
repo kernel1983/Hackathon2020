@@ -107,7 +107,7 @@ def mining():
             # db.execute("UPDATE chain SET hash = %s, prev_hash = %s, nonce = %s, wallet_address = %s WHERE id = %s", block_hash, longest_hash, nonce, wallet_address, last.id)
             # database.connection.execute("INSERT INTO chain"+tree.current_port+" (hash, prev_hash, nonce, difficulty, identity, timestamp, data) VALUES (%s, %s, %s, %s, '')", block_hash, longest_hash, nonce, difficulty, str(tree.current_port))
 
-            message = ["NEW_BLOCK", block_hash, longest_hash, nonce, new_difficulty, msg_id, int(time.time()), data, uuid.uuid4().hex]
+            message = ["NEW_CHAIN_BLOCK", block_hash, longest_hash, nonce, new_difficulty, msg_id, int(time.time()), data, uuid.uuid4().hex]
             tree.forward(message)
             # print(tree.current_port, "mining", nonce, block_hash)
             nonce = 0
