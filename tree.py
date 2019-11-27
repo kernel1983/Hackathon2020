@@ -18,6 +18,7 @@ import setting
 import miner
 import leader
 import fs
+import database
 
 
 control_port = 0
@@ -532,6 +533,26 @@ def on_message(msg):
         no = int(current_port) - 8000
         port = (no >> 1) + 8000
         NodeConnector('127.0.0.1', port, bin(no)[3:])
+
+        http_client = tornado.httpclient.AsyncHTTPClient()
+        local_chain = [i["hash"] for i in miner.longest_chain()]
+        # try:
+        response = yield http_client.fetch("http://%s:%s/get_chain" % ('127.0.0.1', port))
+        result = tornado.escape.json_decode(response.body)
+        chain = result["chain"]
+        if len(chain) > len(local_chain):
+            block_hashes_to_fetch = set(chain)-set(local_chain)
+            print("fetch chain", block_hashes_to_fetch)
+            for block_hash in block_hashes_to_fetch:
+                response = yield http_client.fetch("http://%s:%s/get_block?hash=%s" % ('127.0.0.1', port, block_hash))
+                result = tornado.escape.json_decode(response.body)
+                block = result["block"]
+                database.connection.execute("INSERT INTO chain"+current_port+" (hash, prev_hash, height, nonce, difficulty, identity, timestamp, data) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)", 
+                    block["hash"], block["prev_hash"], block["height"], block["nonce"], block["difficulty"], block["identity"], block["timestamp"], block["data"])
+
+        # except Exception as e:
+        #     print("Error: %s" % e)
+
         return
 
     print(current_port, "node on message", seq)

@@ -126,6 +126,18 @@ def new_block(seq):
         print(tree.current_port, "current view", leader.current_view, "system view", leader.system_view)
 
 
+class GetChainHandler(tornado.web.RequestHandler):
+    def get(self):
+        chain = [i["hash"] for i in longest_chain()]
+        self.finish({'chain': chain})
+
+class GetBlockHandler(tornado.web.RequestHandler):
+    def get(self):
+        block_hash = self.get_argument("hash")
+        block = database.connection.get("SELECT * FROM chain"+tree.current_port+" WHERE hash = %s", block_hash)
+        self.finish({"block": block})
+
+@tornado.gen.coroutine
 def main():
     print(tree.current_port, "miner")
 

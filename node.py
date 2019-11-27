@@ -28,6 +28,8 @@ class Application(tornado.web.Application):
                     (r"/buddy", tree.BuddyHandler),
                     (r"/leader", leader.LeaderHandler),
                     (r"/available_branches", AvailableBranchesHandler),
+                    (r"/get_chain", miner.GetChainHandler),
+                    (r"/get_block", miner.GetBlockHandler),
                     (r"/get_group", GetGroupHandler),
                     (r"/disconnect", DisconnectHandler),
                     (r"/broadcast", BroadcastHandler),
