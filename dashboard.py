@@ -53,7 +53,7 @@ class Application(tornado.web.Application):
         handlers = [(r"/control", ControlHandler),
                     (r"/new_node", NewNodeHandler),
                     (r"/new_tx", NewTxHandler),
-                    (r"/new_tx2", NewTx2Handler),
+                    (r"/new_msg", NewMsgHandler),
                     (r"/dashboard", DashboardHandler),
                     (r"/get_user", GetUserHandler),
                     (r"/new_user", NewUserHandler),
@@ -75,23 +75,61 @@ class NewNodeHandler(tornado.web.RequestHandler):
             subprocess.Popen(["python", "node.py", "--host=%s"%control_host, "--port=%s"%incremental_port, "--control_host=%s"%control_host, "--control_port=%s"%control_port], shell=False)
             self.write("new node %s\n" % incremental_port)
 
-    #     tornado.ioloop.IOLoop.instance().call_later(1, self.add)
 
-    # def add(self):
-    #     global incremental_port
-    #     if self.count <= 0:
-    #         self.finish()
-    #         return
-    #     self.count -= 1
-    #     incremental_port += 1
-    #     subprocess.Popen(["python", "node.py", "--host=%s"%control_host, "--port=%s"%incremental_port, "--control_host=%s"%control_host, "--control_port=%s"%control_port], shell=False)
-    #     self.write("new node %s\n" % incremental_port)
-    #     tornado.ioloop.IOLoop.instance().call_later(2, self.add)
+class NewMsgHandler(tornado.web.RequestHandler):
+    @tornado.gen.coroutine
+    def get(self):
+        msg = self.get_argument("msg")
+        http_client = tornado.httpclient.AsyncHTTPClient()
+
+        sender_filename = "pk0"
+        sender_sk = SigningKey.from_pem(open("data/pk/"+sender_filename).read())
+        sender_vk = sender_sk.get_verifying_key()
+        sender = base64.b64encode(sender_vk.to_string()).decode()
+
+        j = random.randint(1,9)
+        receiver_filename = "pk%s" % j
+        receiver_sk = SigningKey.from_pem(open("data/pk/"+receiver_filename).read())
+        receiver_vk = receiver_sk.get_verifying_key()
+        receiver = base64.b64encode(receiver_vk.to_string()).decode()
+
+        msg_id = uuid.uuid4().hex
+        # amount = random.randint(1, 10)
+        timestamp = int(time.time())
+        message = {
+            "txid": msg_id,
+            "sender": sender,
+            "receiver": receiver,
+            "timestamp": timestamp,
+            "amount": 0,
+            "content": msg
+        }
+        signature = sender_sk.sign(str(timestamp).encode("utf8"))
+        data = {
+            "transaction": message,
+            "signature": base64.b64encode(signature).decode()
+        }
+
+        print("gen msg", msg_id)
+        known_addresses_list = list(ControlHandler.known_addresses)
+        addr = ["127.0.0.1", "8001"]
+        response = yield http_client.fetch("http://%s:%s/new_tx" % tuple(addr), method="POST", body=tornado.escape.json_encode(data))
+
+        self.finish({"msg_id": msg_id})
+
+
+class GetMsgHandler(tornado.web.RequestHandler):
+    @tornado.gen.coroutine
+    def get(self):
+        # tx = tornado.escape.json_decode(self.request.body)
+        # tree.forward(["NEW_TX", tx, time.time(), uuid.uuid4().hex])
+        self.finish({"msg": []})
+
 
 class NewTxHandler(tornado.web.RequestHandler):
     @tornado.gen.coroutine
     def get(self):
-        USER_NO = 100
+        USER_NO = 10
         self.count = int(self.get_argument("n", "1"))
         self.users = {}
         for n in range(USER_NO):
@@ -100,7 +138,8 @@ class NewTxHandler(tornado.web.RequestHandler):
             self.users[n] = user_sk
             print("load key", n)
 
-        self.transactions = []
+        # self.transactions = []
+        http_client = tornado.httpclient.AsyncHTTPClient()
         for n in range(self.count):
             user_nos = set(range(USER_NO))
             i = random.choice(list(user_nos))
@@ -113,7 +152,7 @@ class NewTxHandler(tornado.web.RequestHandler):
             receiver_vk = receiver_sk.get_verifying_key()
             receiver = base64.b64encode(receiver_vk.to_string()).decode()
 
-            amount = random.randint(1, 20)
+            amount = random.randint(1, 10)
             txid = uuid.uuid4().hex
             timestamp = int(time.time())
             transaction = {
@@ -123,113 +162,24 @@ class NewTxHandler(tornado.web.RequestHandler):
                 "timestamp": timestamp,
                 "amount": amount
             }
-            # sender_sign = signing.Signer(sender_sk)
             signature = sender_sk.sign(str(timestamp).encode("utf8"))
             data = {
                 "transaction": transaction,
                 "signature": base64.b64encode(signature).decode()
             }
 
-            # assert sender_vk.verify(signature, str(timestamp).encode("utf8"))
-            print("gen tx", n)
-            self.transactions.append(data)
+            print("gen tx", n, txid)
+            known_addresses_list = list(ControlHandler.known_addresses)
+            addr = random.choice(known_addresses_list)
 
-        self.tx()
-        #     self.write("%s\n" % response.body)
-        # self.finish()
-
-    def tx(self):
-        known_addresses_list = list(ControlHandler.known_addresses)
-        addr = random.choice(known_addresses_list)
-
-        print(len(self.transactions), addr)
-        http_client = tornado.httpclient.AsyncHTTPClient()
-        # try:
-        #     response = yield http_client.fetch("http://%s:%s/new_tx" % tuple(addr), method="POST", body=tornado.escape.json_encode(data))
-        # except Exception as e:
-        #     print("Error: %s" % e)
-        data = self.transactions.pop()
-        http_client.fetch("http://%s:%s/new_tx" % tuple(addr), method="POST", body=tornado.escape.json_encode(data), callback=self.cb)
-
-    def cb(self, response):
-        # print(self.count, response.body)
-        # self.write("%s\n" % response.body)
-        if len(self.transactions) == 0:
-            self.finish()
-            return
-        tornado.ioloop.IOLoop.instance().add_callback(self.tx)
-
-
-class NewTx2Handler(tornado.web.RequestHandler):
-    @tornado.gen.coroutine
-    def get(self):
-        USER_NO = 100
-        self.count = int(self.get_argument("n", "1"))
-        self.users = {}
-        for n in range(USER_NO):
-            user_filename = "pk" + str(n)
-            user_sk = SigningKey.from_pem(open("data/pk/"+user_filename).read())
-            self.users[n] = user_sk
-            print("load key", n)
-
-        self.transactions = []
-        for n in range(0, self.count*2, 2):
-            # user_nos = set(range(USER_NO))
-            # i = random.choice(list(user_nos))
-            sender_sk = self.users[n%USER_NO]
-            sender_vk = sender_sk.get_verifying_key()
-            sender = base64.b64encode(sender_vk.to_string()).decode()
-
-            # j = random.choice(list(user_nos - set([i])))
-            receiver_sk = self.users[n%USER_NO+1]
-            receiver_vk = receiver_sk.get_verifying_key()
-            receiver = base64.b64encode(receiver_vk.to_string()).decode()
-
-            amount = random.randint(1, 20)
-            txid = uuid.uuid4().hex
-            timestamp = int(time.time())
-            transaction = {
-                "txid": txid,
-                "sender": sender,
-                "receiver": receiver,
-                "timestamp": timestamp,
-                "amount": amount
-            }
-            # sender_sign = signing.Signer(sender_sk)
-            signature = sender_sk.sign(str(timestamp).encode("utf8"))
-            data = {
-                "transaction": transaction,
-                "signature": base64.b64encode(signature).decode()
-            }
-
-            # assert sender_vk.verify(signature, str(timestamp).encode("utf8"))
-            print("gen tx", n)
-            self.transactions.append(data)
-
-        self.tx()
-        #     self.write("%s\n" % response.body)
-        # self.finish()
-
-    def tx(self):
-        known_addresses_list = list(ControlHandler.known_addresses)
-        addr = random.choice(known_addresses_list)
-
-        print(len(self.transactions), addr)
-        http_client = tornado.httpclient.AsyncHTTPClient()
-        # try:
-        #     response = yield http_client.fetch("http://%s:%s/new_tx" % tuple(addr), method="POST", body=tornado.escape.json_encode(data))
-        # except Exception as e:
-        #     print("Error: %s" % e)
-        data = self.transactions.pop()
-        http_client.fetch("http://%s:%s/new_tx" % tuple(addr), method="POST", body=tornado.escape.json_encode(data), callback=self.cb)
-
-    def cb(self, response):
-        # print(self.count, response.body)
-        # self.write("%s\n" % response.body)
-        if len(self.transactions) == 0:
-            self.finish()
-            return
-        tornado.ioloop.IOLoop.instance().add_callback(self.tx)
+            # print(len(self.transactions), addr)
+            # try:
+            #     response = yield http_client.fetch("http://%s:%s/new_tx" % tuple(addr), method="POST", body=tornado.escape.json_encode(data))
+            # except Exception as e:
+            #     print("Error: %s" % e)
+            # data = self.transactions.pop()
+            response = yield http_client.fetch("http://%s:%s/new_tx" % tuple(addr), method="POST", body=tornado.escape.json_encode(data))
+        self.finish()
 
 
 class GetUserHandler(tornado.web.RequestHandler):

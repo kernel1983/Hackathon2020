@@ -205,7 +205,7 @@ class NodeConnector(object):
 
     def on_connect(self, future):
         global available_buddies
-        print(current_port, "node connect")
+        print(current_port, "node connect", self.branch)
 
         try:
             self.conn = future.result()
@@ -280,7 +280,8 @@ class NodeConnector(object):
             for h, p in buddies_left:
                 BuddyConnector(h, p)
 
-            control_node.write_message(tornado.escape.json_encode(["ADDRESS2", current_host, current_port, current_groupid]))
+            if control_node:
+                control_node.write_message(tornado.escape.json_encode(["ADDRESS2", current_host, current_port, current_groupid]))
 
             available_children_buddies.setdefault(current_groupid, set()).add((current_host, current_port))
             print(current_port, "GROUP_ID", current_groupid, seq[3])

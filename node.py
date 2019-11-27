@@ -153,12 +153,13 @@ def main():
     database.main()
     # fs.main()
     tornado.ioloop.IOLoop.instance().call_later(20, miner.main)
+    # tornado.ioloop.IOLoop.instance().add_callback(tree.connect)
+    tornado.ioloop.IOLoop.instance().call_later(int(tree.current_port)-8000, tree.connect)
 
     server = Application()
     server.listen(tree.current_port)
-    # tornado.ioloop.IOLoop.instance().add_callback(tree.connect)
-    tornado.ioloop.IOLoop.instance().call_later(int(tree.current_port)-8000, tree.connect)
     tornado.ioloop.IOLoop.instance().start()
 
 if __name__ == '__main__':
     main()
+
