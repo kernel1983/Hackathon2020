@@ -39,6 +39,9 @@ class Application(tornado.web.Application):
                     (r"/user", fs.UserHandler),
                     (r"/object", fs.ObjectHandler),
                     (r"/capsule", fs.CapsuleHandler),
+                    (r"/new_msg", NewMsgHandler),
+                    (r"/get_msg", GetMsgHandler),
+                    (r"/wait_msg", WaitMsgHandler),
                     ]
         settings = {"debug":True}
 
@@ -102,6 +105,29 @@ class NewTxHandler(tornado.web.RequestHandler):
 
         tree.forward(["NEW_TX", tx, time.time(), uuid.uuid4().hex])
         self.finish({"txid": tx["transaction"]["txid"]})
+
+class NewMsgHandler(tornado.web.RequestHandler):
+    def post(self):
+        msg = tornado.escape.json_decode(self.request.body)
+
+        tree.forward(["NEW_MSG", msg, time.time(), uuid.uuid4().hex])
+        self.finish({"msg_id": msg["message"]["msg_id"]})
+
+class GetMsgHandler(tornado.web.RequestHandler):
+    def get(self):
+        # msg = tornado.escape.json_decode(self.request.body)
+        user_pk = self.get_argument("user_pk")
+
+        # tree.forward(["NEW_MSG", msg, time.time(), uuid.uuid4().hex])
+        # self.finish({"msg_id": msg["message"]["msg_id"]})
+
+class WaitMsgHandler(tornado.web.RequestHandler):
+    def post(self):
+        # msg = tornado.escape.json_decode(self.request.body)
+        user_pk = self.get_argument("user_pk")
+
+        # tree.forward(["NEW_MSG", msg, time.time(), uuid.uuid4().hex])
+        # self.finish({"msg_id": msg["message"]["msg_id"]})
 
 class DashboardHandler(tornado.web.RequestHandler):
     def get(self):

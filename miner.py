@@ -63,6 +63,7 @@ def mining():
     global nonce
 
     longest = longest_chain()
+    update_leader(longest)
     # print(longest)
     if longest:
         longest_hash = longest[-1].hash
@@ -110,7 +111,13 @@ def new_block(seq):
         pass
 
     longest = longest_chain()
+    update_leader(longest)
+    print(tree.current_port, "current view", leader.current_view, "system view", leader.system_view)
+
+def update_leader(longest):
+    height = 0
     if longest:
+        height = longest[-1].height
         leaders = set([tuple(i.identity.split(":")) for i in longest[-setting.LEADERS_NUM-setting.ELECTION_WAIT:-setting.ELECTION_WAIT]])
         leader.update(leaders)
         # this method to wake up leader to work, is not as good as the timestamp way
@@ -122,9 +129,6 @@ def new_block(seq):
 
     if height - (setting.LEADERS_NUM+setting.ELECTION_WAIT-1) > 0:
         leader.system_view = height - (setting.LEADERS_NUM+setting.ELECTION_WAIT-1)
-        # print(tree.current_port, "leader view", leader.system_view, leader.current_view)
-        print(tree.current_port, "current view", leader.current_view, "system view", leader.system_view)
-
 
 class GetChainHandler(tornado.web.RequestHandler):
     def get(self):

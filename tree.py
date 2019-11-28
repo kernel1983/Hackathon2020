@@ -529,8 +529,11 @@ def on_message(msg):
         return
 
     seq = tornado.escape.json_decode(msg)
-
     print(current_port, "node on message", seq)
+
+    if setting.BOOTSTRAP_BY_PORT_NO:
+        return
+
     if seq[0] == "BOOTSTRAP_ADDRESS":
         if not seq[1]:
             # root node
@@ -550,8 +553,9 @@ def connect():
     global current_groupid
     global available_branches
 
-    print("\n\n")
+    # print("\n\n")
     print(current_port, "connect control", control_host, "port", control_port)
+    tornado.websocket.websocket_connect("ws://%s:%s/control" % (control_host, control_port), callback=on_connect, on_message_callback=on_message)
 
     if setting.BOOTSTRAP_BY_PORT_NO:
         if int(current_port) > 8001:
@@ -582,10 +586,6 @@ def connect():
             available_branches.add(tuple([current_host, current_port, "0"]))
             available_branches.add(tuple([current_host, current_port, "1"]))
             current_groupid = ""
-
-
-    else:
-        tornado.websocket.websocket_connect("ws://%s:%s/control" % (control_host, control_port), callback=on_connect, on_message_callback=on_message)
 
 
 def main():
