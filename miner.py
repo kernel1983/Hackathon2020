@@ -59,6 +59,7 @@ def longest_chain(root_hash = '0'*64):
 
 
 nonce = 0
+@tornado.gen.coroutine
 def mining():
     global nonce
 

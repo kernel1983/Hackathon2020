@@ -183,7 +183,7 @@ def main():
     tornado.ioloop.IOLoop.instance().call_later(int(tree.current_port)-8000, tree.connect)
 
     server = Application()
-    server.listen(tree.current_port)
+    server.listen(tree.current_port, '0.0.0.0')
     tornado.ioloop.IOLoop.instance().start()
 
 if __name__ == '__main__':

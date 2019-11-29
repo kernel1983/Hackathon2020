@@ -558,22 +558,24 @@ def connect():
     tornado.websocket.websocket_connect("ws://%s:%s/control" % (control_host, control_port), callback=on_connect, on_message_callback=on_message)
 
     if setting.BOOTSTRAP_BY_PORT_NO:
+        if NodeConnector.parent_nodes:
+            return
         if int(current_port) > 8001:
             no = int(current_port) - 8000
             port = (no >> 1) + 8000
-            NodeConnector('127.0.0.1', port, bin(no)[3:])
+            NodeConnector(current_host, port, bin(no)[3:])
 
             http_client = tornado.httpclient.AsyncHTTPClient()
             local_chain = [i["hash"] for i in miner.longest_chain()]
             # try:
-            response = yield http_client.fetch("http://%s:%s/get_chain" % ('127.0.0.1', port))
+            response = yield http_client.fetch("http://%s:%s/get_chain" % (current_host, port))
             result = tornado.escape.json_decode(response.body)
             chain = result["chain"]
             if len(chain) > len(local_chain):
                 block_hashes_to_fetch = set(chain)-set(local_chain)
                 print("fetch chain", block_hashes_to_fetch)
                 for block_hash in block_hashes_to_fetch:
-                    response = yield http_client.fetch("http://%s:%s/get_block?hash=%s" % ('127.0.0.1', port, block_hash))
+                    response = yield http_client.fetch("http://%s:%s/get_block?hash=%s" % (current_host, port, block_hash))
                     result = tornado.escape.json_decode(response.body)
                     block = result["block"]
                     database.connection.execute("INSERT INTO chain"+current_port+" (hash, prev_hash, height, nonce, difficulty, identity, timestamp, data) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)", 
