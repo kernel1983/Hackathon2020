@@ -337,6 +337,7 @@ transactions = []
 locked_accounts = set()
 # block_to_confirm = {}
 # block_to_reply = {}
+@tornado.gen.coroutine
 def mining():
     # global working
     # global transactions
@@ -344,7 +345,7 @@ def mining():
     global current_view_no
     global view_transactions
     if working:
-        tornado.ioloop.IOLoop.instance().add_callback(mining)
+        tornado.ioloop.IOLoop.instance().call_later(0.1, mining)
     if current_view is None:
         return
 

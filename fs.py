@@ -10,7 +10,7 @@ import uuid
 import hashlib
 
 import tornado.web
-# import tornado.websocket
+import tornado.websocket
 import tornado.ioloop
 import tornado.options
 import tornado.httpserver
@@ -220,6 +220,58 @@ class UserHandler(tornado.web.RequestHandler):
         data = {"folder_hash": folder_hash, "block_size":block_size, "folder_size": folder_size, "groupid": groupid, "user_id": user_id, "by": tree.current_port}
         tree.forward(["UPDATE_HOME", user_id, data, time.time(), uuid.uuid4().hex])
         self.finish()
+
+
+class NewMsgHandler(tornado.web.RequestHandler):
+    def post(self):
+        msg = tornado.escape.json_decode(self.request.body)
+
+        tree.forward(["NEW_MSG", msg, time.time(), uuid.uuid4().hex])
+        self.finish({"msg_id": msg["message"]["msg_id"]})
+
+class GetMsgHandler(tornado.web.RequestHandler):
+    def get(self):
+        user_pk = self.get_argument("user_pk")
+
+
+class WaitMsgHandler(tornado.websocket.WebSocketHandler):
+    clients = set()
+
+    # def data_received(self, chunk):
+    #     print("data received")
+
+    def check_origin(self, origin):
+        return True
+
+    def open(self):
+        print("wait msg: client connected")
+        if self not in self.clients:
+            self.clients.add(self)
+        print('123', len(self.clients))
+
+    def on_close(self):
+        print("wait msg: client disconnected")
+        if self in self.clients:
+            self.clients.remove(self)
+        print('234', len(self.clients))
+
+    # def send_to_client(self, msg):
+    #     print("send message: %s" % msg)
+    #     self.write_message(msg)
+
+    @tornado.gen.coroutine
+    def on_message(self, msg):
+        seq = tornado.escape.json_decode(msg)
+        print("wait msg got message", seq)
+
+    @classmethod
+    def new_tx_block(cls, seq):
+        # global WaitMsgHandler
+        print('456', len(cls.clients))
+        for w in cls.clients:
+            print("new_tx_block", seq)
+            w.write_message(tornado.escape.json_encode(seq))
+
 
 def main():
     print(tree.current_port, "fs")

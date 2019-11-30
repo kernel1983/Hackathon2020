@@ -164,6 +164,7 @@ class NodeHandler(tornado.websocket.WebSocketHandler):
 
         elif seq[0] == "NEW_TX_BLOCK":
             leader.new_tx_block(seq)
+            fs.WaitMsgHandler.new_tx_block(seq)
 
         elif seq[0] == "NEW_TX":
             txid = seq[1]["transaction"]["txid"]
@@ -314,6 +315,7 @@ class NodeConnector(object):
 
         elif seq[0] == "NEW_TX_BLOCK":
             leader.new_tx_block(seq)
+            fs.WaitMsgHandler.new_tx_block(seq)
 
         elif seq[0] == "NEW_TX":
             txid = seq[1]["transaction"]["txid"]
@@ -382,6 +384,7 @@ class BuddyHandler(tornado.websocket.WebSocketHandler):
 
         elif seq[0] == "NEW_TX_BLOCK":
             leader.new_tx_block(seq)
+            fs.WaitMsgHandler.new_tx_block(seq)
 
         forward(seq)
 
@@ -477,6 +480,7 @@ class BuddyConnector(object):
 
         elif seq[0] == "NEW_TX_BLOCK":
             leader.new_tx_block(seq)
+            fs.WaitMsgHandler.new_tx_block(seq)
 
         # else:
         forward(seq)
