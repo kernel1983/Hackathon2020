@@ -34,14 +34,15 @@ class Application(tornado.web.Application):
                     (r"/disconnect", DisconnectHandler),
                     (r"/broadcast", BroadcastHandler),
                     (r"/new_tx", NewTxHandler),
+                    (r"/new_msg", NewMsgHandler),
                     (r"/dashboard", DashboardHandler),
                     # mtfs
                     (r"/user", fs.UserHandler),
                     (r"/object", fs.ObjectHandler),
-                    (r"/capsule", fs.CapsuleHandler),
-                    (r"/new_msg", fs.NewMsgHandler),
-                    (r"/get_msg", fs.GetMsgHandler),
-                    (r"/wait_msg", fs.WaitMsgHandler),
+                    (r"/activate_default_store", fs.ActivateDefaultStoreHandler),
+                    # (r"/chat/new_msg", fs.NewMsgHandler),
+                    # (r"/chat/get_msg", fs.GetMsgHandler),
+                    # (r"/chat/wait_msg", fs.WaitMsgHandler),
                     ]
         settings = {"debug":True}
 
@@ -106,6 +107,21 @@ class NewTxHandler(tornado.web.RequestHandler):
         tree.forward(["NEW_TX", tx, time.time(), uuid.uuid4().hex])
         self.finish({"txid": tx["transaction"]["txid"]})
 
+class NewMsgHandler(tornado.web.RequestHandler):
+    def get(self):
+        msg = {
+            "message":{"msgid":uuid.uuid4().hex ,"sender":"1", "receiver":"2", "timestamp":"3"},
+            "signature": "4"
+        }
+
+        tree.forward(["NEW_MSG", msg, time.time(), uuid.uuid4().hex])
+        self.finish({"msgid": msg["message"]["msgid"]})
+
+    def post(self):
+        msg = tornado.escape.json_decode(self.request.body)
+
+        tree.forward(["NEW_MSG", msg, time.time(), uuid.uuid4().hex])
+        self.finish({"msgid": msg["message"]["msgid"]})
 
 class DashboardHandler(tornado.web.RequestHandler):
     def get(self):

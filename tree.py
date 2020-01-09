@@ -171,11 +171,22 @@ class NodeHandler(tornado.websocket.WebSocketHandler):
             # if (current_host, current_port) in leader.current_leaders and txid not in processed_message_ids:
             if txid not in processed_message_ids:
                 processed_message_ids.add(txid)
-                leader.transactions.append(seq)
+                leader.messages.append(seq)
                 # print(current_port, "tx msg", seq)
 
-        elif seq[0] == "UPDATE_HOME":
-            fs.transactions.append(seq)
+        elif seq[0] == "NEW_MSG_BLOCK":
+            print(current_port, "NEW_MSG_BLOCK")
+            leader.new_msg_block(seq)
+            # fs.WaitMsgHandler.new_tx_block(seq)
+
+        elif seq[0] == "NEW_MSG":
+            msgid = seq[1]["message"]["msgid"]
+            if msgid not in processed_message_ids:
+                processed_message_ids.add(msgid)
+                leader.messages.append(seq)
+
+        # elif seq[0] == "UPDATE_HOME":
+        #     fs.transactions.append(seq)
 
         forward(seq)
 
@@ -321,8 +332,19 @@ class NodeConnector(object):
             txid = seq[1]["transaction"]["txid"]
             if (current_host, current_port) in leader.current_leaders and txid not in processed_message_ids:
                 processed_message_ids.add(txid)
-                leader.transactions.append(seq)
+                leader.messages.append(seq)
                 # print(current_port, "tx msg", seq)
+
+        elif seq[0] == "NEW_MSG_BLOCK":
+            print(current_port, "NEW_MSG_BLOCK")
+            leader.new_msg_block(seq)
+            # fs.WaitMsgHandler.new_tx_block(seq)
+
+        elif seq[0] == "NEW_MSG":
+            msgid = seq[1]["message"]["msgid"]
+            if (current_host, current_port) in leader.current_leaders and msgid not in processed_message_ids:
+                processed_message_ids.add(msgid)
+                leader.messages.append(seq)
 
         # else:
         forward(seq)

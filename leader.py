@@ -93,7 +93,7 @@ def lastest_block(root_hash):
 
 
 def new_tx_block(seq):
-    global transactions
+    global messages
     msg_header, transaction, timestamp, msg_id = seq
 
     txid = transaction["transaction"]["txid"]
@@ -129,10 +129,50 @@ def new_tx_block(seq):
         if receiver in locked_accounts:
             locked_accounts.remove(receiver)
 
-        # for tx in transactions:
+        # for tx in messages:
         #     if tx["transaction"]["txid"] == txid:
-        #         transactions.remove(tx)
+        #         messages.remove(tx)
         #         break
+    except:
+        pass
+
+
+def new_msg_block(seq):
+    global messages
+    msg_header, block, timestamp, msg_id = seq
+
+    msgid = block["message"]["msgid"]
+    sender = block["message"]["sender"]
+    receiver = block["message"]["receiver"]
+    # amount = block["message"]["amount"]
+    timestamp = block["message"]["timestamp"]
+
+    signature = block["signature"]
+    block_hash = block["block_hash"]
+    nonce = block["nonce"]
+    from_block = block["from_block"]
+    to_block = block["to_block"]
+
+    related_block = True
+    if setting.NODE_DIVISION:
+        sender_bytes = base64.b64decode(sender.encode('utf8'))
+        sender_binary = bin(string_to_number(sender_bytes))[2:]
+        # print(tree.current_port, "sender", sender_binary)
+        receiver_bytes = base64.b64decode(receiver.encode('utf8'))
+        receiver_binary = bin(string_to_number(receiver_bytes))[2:]
+        # print(tree.current_port, "receiver", receiver_binary)
+        if not sender_binary.startswith(tree.current_groupid) and not receiver_binary.startswith(tree.current_groupid):
+            related_block = False
+
+    try:
+        if related_block:
+            sql = "INSERT INTO graph"+tree.current_port+" (txid, timestamp, hash, from_block, to_block, sender, receiver, nonce, data) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
+            database.connection.execute(sql, msgid, int(timestamp), block_hash, from_block, to_block, sender, receiver, nonce, tornado.escape.json_encode(block))
+
+        if sender in locked_accounts:
+            locked_accounts.remove(sender)
+        if receiver in locked_accounts:
+            locked_accounts.remove(receiver)
     except:
         pass
 
@@ -194,40 +234,43 @@ class LeaderHandler(tornado.websocket.WebSocketHandler):
             view = seq[1]
             view_no = seq[2]
             # view's no should be continuous
-            transaction = seq[3]
-            txid = transaction["transaction"]["txid"]
+            block = seq[3]
+            msgid = block["transaction"]["txid"] if "transaction" in block else block["message"]["msgid"]
             # gen block
-            block_hash = transaction["block_hash"]
+            block_hash = block["block_hash"]
             k = "%s_%s"%(int(view), int(view_no))
-            view_transactions[k] = transaction
-            forward(["PBFT_P", view, view_no, txid, block_hash])
+            view_transactions[k] = block
+            forward(["PBFT_P", view, view_no, msgid, block_hash])
             return
 
         elif seq[0] == "PBFT_P":
             view = seq[1]
             view_no = seq[2]
-            txid = seq[3]
+            msgid = seq[3]
             block_hash = seq[4]
             # verify blockhash with own blockhash for txid
-            forward(["PBFT_C", view, view_no, txid, current_view])
+            forward(["PBFT_C", view, view_no, msgid, current_view])
             return
 
         elif seq[0] == "PBFT_C":
             view = seq[1]
             view_no = seq[2]
-            txid = seq[3]
+            msgid = seq[3]
             confirm_view = seq[4]
 
             k = "%s_%s"%(int(view), int(view_no))
-            transaction = view_transactions.get(k)
+            block = view_transactions.get(k)
             view_confirms.setdefault(k, set())
             confirms = view_confirms[k]
             if confirm_view not in confirms:
                 confirms.add(confirm_view)
-                # print(tree.current_port, current_view, confirms, transaction)
-                if transaction and len(confirms)==2:
-                    print(tree.current_port, "NEW_TX_BLOCK", txid)
-                    message = ["NEW_TX_BLOCK", transaction, time.time(), uuid.uuid4().hex]
+                # print(tree.current_port, current_view, confirms, block)
+                if block and len(confirms)==2:
+                    print(tree.current_port, "NEW BLOCK", msgid)
+                    if "transaction" in block:
+                        message = ["NEW_TX_BLOCK", block, time.time(), uuid.uuid4().hex]
+                    else:
+                        message = ["NEW_MSG_BLOCK", block, time.time(), uuid.uuid4().hex]
                     tree.forward(message)
             return
 
@@ -294,53 +337,56 @@ class LeaderConnector(object):
             view = seq[1]
             view_no = seq[2]
             # view's no should be continuous
-            transaction = seq[3]
-            txid = transaction["transaction"]["txid"]
+            block = seq[3]
+            msgid = block["transaction"]["txid"] if "transaction" in block else block["message"]["msgid"]
             # gen block
-            block_hash = transaction["block_hash"]
+            block_hash = block["block_hash"]
             k = "%s_%s"%(int(view), int(view_no))
-            view_transactions[k] = transaction
-            forward(["PBFT_P", view, view_no, txid, block_hash])
+            view_transactions[k] = block
+            forward(["PBFT_P", view, view_no, msgid, block_hash])
             return
 
         elif seq[0] == "PBFT_P":
             view = seq[1]
             view_no = seq[2]
-            txid = seq[3]
+            msgid = seq[3]
             block_hash = seq[4]
             # verify blockhash with own blockhash for txid
-            forward(["PBFT_C", view, view_no, txid, current_view])
+            forward(["PBFT_C", view, view_no, msgid, current_view])
             return
 
         elif seq[0] == "PBFT_C":
             view = seq[1]
             view_no = seq[2]
-            txid = seq[3]
+            msgid = seq[3]
             confirm_view = seq[4]
 
             k = "%s_%s"%(int(view), int(view_no))
-            transaction = view_transactions.get(k)
+            block = view_transactions.get(k)
             view_confirms.setdefault(k, set())
             confirms = view_confirms[k]
             if confirm_view not in confirms:
                 confirms.add(confirm_view)
-                # print(tree.current_port, current_view, confirms, transaction)
-                if transaction and len(confirms)==2:
-                    print(tree.current_port, "NEW_TX_BLOCK", txid)
-                    message = ["NEW_TX_BLOCK", transaction, time.time(), uuid.uuid4().hex]
+                # print(tree.current_port, current_view, confirms, block)
+                if block and len(confirms)==2:
+                    print(tree.current_port, "NEW BLOCK", msgid)
+                    if "transaction" in block:
+                        message = ["NEW_TX_BLOCK", block, time.time(), uuid.uuid4().hex]
+                    else:
+                        message = ["NEW_MSG_BLOCK", block, time.time(), uuid.uuid4().hex]
                     tree.forward(message)
             return
 
         forward(seq)
 
-transactions = []
+messages = []
 locked_accounts = set()
 # block_to_confirm = {}
 # block_to_reply = {}
 @tornado.gen.coroutine
 def mining():
     # global working
-    # global transactions
+    global messages
     global locked_accounts
     global current_view_no
     global view_transactions
@@ -349,25 +395,38 @@ def mining():
     if current_view is None:
         return
 
-    if transactions:
+    if messages:
         # print(tree.current_port, "I'm the leader", current_view, "of leader view", system_view)
-        seq = transactions.pop(0)
-        transaction = seq[1]
-        txid = transaction["transaction"]["txid"]
-        if current_view != system_view:
-            tx = database.connection.get("SELECT * FROM graph"+tree.current_port+" WHERE txid = %s LIMIT 1", txid)
-            if not tx:
-                transactions.append(seq)
-            return
-        sender = transaction["transaction"]["sender"]
-        receiver = transaction["transaction"]["receiver"]
-        amount = transaction["transaction"]["amount"]
-        timestamp = transaction["transaction"]["timestamp"]
-        signature = transaction["signature"]
+        seq = messages.pop(0)
+        block = seq[1]
+        if "transaction" in block:
+            msgid = block["transaction"]["txid"]
+            if current_view != system_view:
+                tx = database.connection.get("SELECT * FROM graph"+tree.current_port+" WHERE txid = %s LIMIT 1", msgid)
+                if not tx:
+                    messages.append(seq)
+                return
+            sender = block["transaction"]["sender"]
+            receiver = block["transaction"]["receiver"]
+            amount = block["transaction"]["amount"]
+            timestamp = block["transaction"]["timestamp"]
+            signature = block["signature"]
+
+        else:
+            msgid = block["message"]["msgid"]
+            if current_view != system_view:
+                msg = database.connection.get("SELECT * FROM graph"+tree.current_port+" WHERE txid = %s LIMIT 1", msgid)
+                if not msg:
+                    messages.append(seq)
+                return
+            sender = block["message"]["sender"]
+            receiver = block["message"]["receiver"]
+            timestamp = block["message"]["timestamp"]
+            signature = block["signature"]
 
         if sender in locked_accounts or receiver in locked_accounts:
-            transactions.append(seq)
-            print(tree.current_port, "put tx back", txid, len(transactions))
+            messages.append(seq)
+            print(tree.current_port, "put msg back", msgid, len(messages))
             return
         locked_accounts.add(sender)
         locked_accounts.add(receiver)
@@ -378,20 +437,21 @@ def mining():
 
         from_block = sender_blocks[-1] if sender_blocks else sender
         to_block = receiver_blocks[-1] if receiver_blocks else receiver
+        block["from_block"] = from_block
+        block["to_block"] = to_block
 
         nonce = 0
-        data = txid + sender + receiver + str(amount) + str(timestamp) + signature + from_block + to_block + str(tree.current_port)
+        data = tornado.escape.json_encode(block) + str(tree.current_port)
         block_hash = hashlib.sha256((data + str(nonce)).encode('utf8')).hexdigest()
-        transaction["block_hash"] = block_hash
-        transaction["nonce"] = nonce
-        transaction["from_block"] = from_block
-        transaction["to_block"] = to_block
+        block["block_hash"] = block_hash
+        block["nonce"] = nonce
 
         current_view_no += 1
         k = "%s_%s"%(int(current_view), int(current_view_no))
-        view_transactions[k] = transaction
-        message = ["PBFT_O", current_view, current_view_no, transaction]
-        forward(message)
+        view_transactions[k] = block
+        msg = ["PBFT_O", current_view, current_view_no, block]
+        forward(msg)
+
 
 
 current_leaders = set()
@@ -400,7 +460,7 @@ def update(leaders):
     global current_leaders
     global previous_leaders
     global working
-    global transactions
+    global messages
 
     current_leaders = leaders
     if (tree.current_host, tree.current_port) in leaders - previous_leaders:
@@ -428,7 +488,7 @@ def update(leaders):
 
     if (tree.current_host, tree.current_port) not in leaders:
         working = False
-        transactions = []
+        messages = []
 
         while LeaderConnector.leader_nodes:
             LeaderConnector.leader_nodes.pop().close()

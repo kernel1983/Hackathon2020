@@ -8,6 +8,7 @@ import subprocess
 import argparse
 import uuid
 import hashlib
+import base64
 
 import tornado.web
 import tornado.websocket
@@ -17,8 +18,7 @@ import tornado.httpserver
 import tornado.escape
 import tornado.gen
 
-# from ecdsa import VerifyingKey, NIST384p
-# from umbral import pre, keys, signing
+import ecdsa #import VerifyingKey, NIST384p
 
 import setting
 import tree
@@ -65,70 +65,84 @@ def mt_combine(hash_list, algorithm):
     return result
 
 
-transactions = []
-nonce = 0
-def mining():
-    global nonce
+def m(n):
+    power = math.floor(math.log(n, 2))
+    return 2**(power-1)+(n-2**power)
 
-    longest = miner.longest_chain()
-    # print(longest)
-    if longest:
-        longest_hash = longest[-1].hash
-        difficulty = longest[-1].difficulty
-        data = longest[-1].data
-        identity = longest[-1].identity
-        recent = longest[-3:]
-        # print(recent)
-        if len(recent) * setting.BLOCK_INTERVAL_SECONDS > recent[-1].timestamp - recent[0].timestamp:
-            new_difficulty = min(255, difficulty + 1)
-        else:
-            new_difficulty = max(1, difficulty - 1)
+def M(n):
+    while n > 2:
+        print(n)
+        n=m(n)
 
-        # if tree.current_port in [i.identity for i in longest[-6:]]:
-        #     return
 
-    else:
-        longest_hash, difficulty, new_difficulty, data, identity = "0"*64, 1, 1, "", ""
+# transactions = []
+# nonce = 0
+# def mining():
+#     global nonce
 
-    if not transactions:
-        return
-    print(transactions)
-    transaction = transactions[0]
-    msg_header, user_id, data, timestamp, msg_id = transaction
-    if msg_id in [i["identity"] for i in longest or []]:
-        transactions.pop(0)
-        return
+#     longest = miner.longest_chain()
+#     # print(longest)
+#     if longest:
+#         longest_hash = longest[-1].hash
+#         difficulty = longest[-1].difficulty
+#         data = longest[-1].data
+#         identity = longest[-1].identity
+#         recent = longest[-3:]
+#         # print(recent)
+#         if len(recent) * setting.BLOCK_INTERVAL_SECONDS > recent[-1].timestamp - recent[0].timestamp:
+#             new_difficulty = min(255, difficulty + 1)
+#         else:
+#             new_difficulty = max(1, difficulty - 1)
 
-    for i in range(100):
-        block_hash = hashlib.sha256((identity + tornado.escape.json_encode(data) + longest_hash + str(difficulty) + str(nonce)).encode('utf8')).hexdigest()
-        if int(block_hash, 16) < int("1" * (256-difficulty), 2):
-            if longest:
-                print(len(longest), longest[-1].timestamp, longest[0].timestamp, longest[-1].timestamp - longest[0].timestamp)
-            # db.execute("UPDATE chain SET hash = %s, prev_hash = %s, nonce = %s, wallet_address = %s WHERE id = %s", block_hash, longest_hash, nonce, wallet_address, last.id)
-            # database.connection.execute("INSERT INTO chain"+tree.current_port+" (hash, prev_hash, nonce, difficulty, identity, timestamp, data) VALUES (%s, %s, %s, %s, '')", block_hash, longest_hash, nonce, difficulty, str(tree.current_port))
+#         # if tree.current_port in [i.identity for i in longest[-6:]]:
+#         #     return
 
-            message = ["NEW_CHAIN_BLOCK", block_hash, longest_hash, nonce, new_difficulty, msg_id, int(time.time()), data, uuid.uuid4().hex]
-            tree.forward(message)
-            # print(tree.current_port, "mining", nonce, block_hash)
-            nonce = 0
-            transactions.pop(0)
-            break
+#     else:
+#         longest_hash, difficulty, new_difficulty, data, identity = "0"*64, 1, 1, "", ""
 
-        nonce += 1
+#     if not transactions:
+#         return
+#     print(transactions)
+#     transaction = transactions[0]
+#     msg_header, user_id, data, timestamp, msg_id = transaction
+#     if msg_id in [i["identity"] for i in longest or []]:
+#         transactions.pop(0)
+#         return
 
-class CapsuleHandler(tornado.web.RequestHandler):
+#     for i in range(100):
+#         block_hash = hashlib.sha256((identity + tornado.escape.json_encode(data) + longest_hash + str(difficulty) + str(nonce)).encode('utf8')).hexdigest()
+#         if int(block_hash, 16) < int("1" * (256-difficulty), 2):
+#             if longest:
+#                 print(len(longest), longest[-1].timestamp, longest[0].timestamp, longest[-1].timestamp - longest[0].timestamp)
+#             # db.execute("UPDATE chain SET hash = %s, prev_hash = %s, nonce = %s, wallet_address = %s WHERE id = %s", block_hash, longest_hash, nonce, wallet_address, last.id)
+#             # database.connection.execute("INSERT INTO chain"+tree.current_port+" (hash, prev_hash, nonce, difficulty, identity, timestamp, data) VALUES (%s, %s, %s, %s, '')", block_hash, longest_hash, nonce, difficulty, str(tree.current_port))
+
+#             message = ["NEW_CHAIN_BLOCK", block_hash, longest_hash, nonce, new_difficulty, msg_id, int(time.time()), data, uuid.uuid4().hex]
+#             tree.forward(message)
+#             # print(tree.current_port, "mining", nonce, block_hash)
+#             nonce = 0
+#             transactions.pop(0)
+#             break
+
+#         nonce += 1
+
+class ActivateDefaultStoreHandler(tornado.web.RequestHandler):
     def get(self):
-        object_hash = self.get_argument("hash")
+        # object_hash = self.get_argument("hash")
         user_id = self.get_argument("user_id")
-        timestamp = self.get_argument("timestamp")
-        signature = self.get_argument("signature")
+        # timestamp = self.get_argument("timestamp")
+        # signature = self.get_argument("signature")
+        # print(user_id)
+        vk_bytes = base64.b16decode(user_id)
+        # print(vk_bytes)
+        vk = ecdsa.VerifyingKey.from_string(vk_bytes, curve=ecdsa.NIST256p)
 
-        vk = keys.UmbralPublicKey.from_bytes(bytes.fromhex(str(user_id)))
-        sig = signing.Signature.from_bytes(bytes.fromhex(str(signature)))
-        assert sig.verify((object_hash+timestamp).encode("utf8"), vk)
+        # vk = keys.UmbralPublicKey.from_bytes(bytes.fromhex(str(user_id)))
+        # sig = signing.Signature.from_bytes(bytes.fromhex(str(signature)))
+        # assert sig.verify((object_hash+timestamp).encode("utf8"), vk)
 
-        capsule = open("data/%s/%s_capsule" % (user_id, object_hash), "rb").read()
-        self.finish(capsule)
+        # capsule = open("data/%s/%s_capsule" % (user_id, object_hash), "rb").read()
+        self.finish(vk_bytes)
 
 
 class ObjectHandler(tornado.web.RequestHandler):
@@ -275,8 +289,8 @@ class WaitMsgHandler(tornado.websocket.WebSocketHandler):
 
 def main():
     print(tree.current_port, "fs")
-    mining_task = tornado.ioloop.PeriodicCallback(mining, 1000) # , jitter=0.5
-    mining_task.start()
+    # mining_task = tornado.ioloop.PeriodicCallback(mining, 1000) # , jitter=0.5
+    # mining_task.start()
 
 if __name__ == '__main__':
     # main()
