@@ -19,6 +19,7 @@ import miner
 import leader
 import fs
 import database
+import msg
 
 
 control_port = 0
@@ -40,27 +41,27 @@ processed_message_ids = set()
 def forward(seq):
     # global processed_message_ids
 
-    msg_id = seq[-1]
-    if msg_id in processed_message_ids:
+    message_id = seq[-1]
+    if message_id in processed_message_ids:
         return
-    processed_message_ids.add(msg_id)
-    msg = tornado.escape.json_encode(seq)
+    processed_message_ids.add(message_id)
+    message = tornado.escape.json_encode(seq)
 
     for child_node in NodeHandler.child_nodes.values():
         # if not child_node.stream.closed:
-        child_node.write_message(msg)
+        child_node.write_message(message)
 
     for parent_connector in NodeConnector.parent_nodes:
         # if parent_connector.conn.close_code is not None:
-        parent_connector.conn.write_message(msg)
+        parent_connector.conn.write_message(message)
 
     for buddy_node in BuddyHandler.buddy_nodes:
         # if not buddy_node.stream.closed:
-        buddy_node.write_message(msg)
+        buddy_node.write_message(message)
 
     for buddy_connector in BuddyConnector.buddy_nodes:
         # if buddy_connector.conn.close_code is not None:
-        buddy_connector.conn.write_message(msg)
+        buddy_connector.conn.write_message(message)
 
 def group_distance(a, b):
     if len(a) > len(b):
@@ -134,11 +135,11 @@ class NodeHandler(tornado.websocket.WebSocketHandler):
         forward(message)
 
     @tornado.gen.coroutine
-    def on_message(self, msg):
+    def on_message(self, message):
         global current_groupid
         global node_neighborhoods
 
-        seq = tornado.escape.json_decode(msg)
+        seq = tornado.escape.json_decode(message)
         # print(current_port, "on message from child", seq)
         if seq[0] == "DISCARDED_BRANCHES":
             for i in seq[1]:
@@ -164,7 +165,7 @@ class NodeHandler(tornado.websocket.WebSocketHandler):
 
         elif seq[0] == "NEW_TX_BLOCK":
             leader.new_tx_block(seq)
-            fs.WaitMsgHandler.new_tx_block(seq)
+            msg.WaitMsgHandler.new_block(seq)
 
         elif seq[0] == "NEW_TX":
             txid = seq[1]["transaction"]["txid"]
@@ -177,7 +178,7 @@ class NodeHandler(tornado.websocket.WebSocketHandler):
         elif seq[0] == "NEW_MSG_BLOCK":
             print(current_port, "NEW_MSG_BLOCK")
             leader.new_msg_block(seq)
-            # fs.WaitMsgHandler.new_tx_block(seq)
+            msg.WaitMsgHandler.new_block(seq)
 
         elif seq[0] == "NEW_MSG":
             msgid = seq[1]["message"]["msgid"]
@@ -242,14 +243,14 @@ class NodeConnector(object):
             return
 
     @tornado.gen.coroutine
-    def on_message(self, msg):
+    def on_message(self, message):
         global available_buddies
         global current_branch
         global current_groupid
         global node_parents
         global node_neighborhoods
 
-        if msg is None:
+        if message is None:
             # print("reconnect2 ...")
             if current_branch in available_branches:
                 available_branches.remove(current_branch)
@@ -261,7 +262,7 @@ class NodeConnector(object):
             tornado.ioloop.IOLoop.instance().call_later(1.0, self.connect)
             return
 
-        seq = tornado.escape.json_decode(msg)
+        seq = tornado.escape.json_decode(message)
         # print(current_port, "on message from parent", seq)
         if seq[0] == "DISCARDED_BRANCHES":
             for i in seq[1]:
@@ -270,7 +271,7 @@ class NodeConnector(object):
                     available_branches.remove(tuple([branch_host, branch_port, branch]))
 
             # for node in NodeHandler.child_nodes.values():
-            #     node.write_message(msg)
+            #     node.write_message(message)
 
         elif seq[0] == "AVAILABLE_BRANCHES":
             for i in seq[1]:
@@ -278,10 +279,10 @@ class NodeConnector(object):
                 available_branches.add(tuple([branch_host, branch_port, branch]))
 
             # for node in NodeHandler.child_nodes.values():
-            #     node.write_message(msg)
+            #     node.write_message(message)
 
-            message = ["NODE_NEIGHBOURHOODS", current_groupid, list(available_buddies), uuid.uuid4().hex]
-            forward(message)
+            m = ["NODE_NEIGHBOURHOODS", current_groupid, list(available_buddies), uuid.uuid4().hex]
+            forward(m)
 
         elif seq[0] == "GROUP_ID":
             current_groupid = seq[1]
@@ -301,8 +302,8 @@ class NodeConnector(object):
             # print(current_port, "NODE_PARENTS", node_parents[current_groupid])
 
             if self.conn and not self.conn.stream.closed:
-                message = ["NODE_NEIGHBOURHOODS", current_groupid, list(available_buddies), uuid.uuid4().hex]
-                self.conn.write_message(tornado.escape.json_encode(message))
+                m = ["NODE_NEIGHBOURHOODS", current_groupid, list(available_buddies), uuid.uuid4().hex]
+                self.conn.write_message(tornado.escape.json_encode(m))
             return
 
         elif seq[0] == "NODE_PARENTS":
@@ -310,7 +311,7 @@ class NodeConnector(object):
             # print(current_port, "NODE_PARENTS", node_parents)
 
             for child_node in NodeHandler.child_nodes.values():
-                child_node.write_message(msg)
+                child_node.write_message(message)
             return
 
         elif seq[0] == "NODE_NEIGHBOURHOODS":
@@ -326,7 +327,7 @@ class NodeConnector(object):
 
         elif seq[0] == "NEW_TX_BLOCK":
             leader.new_tx_block(seq)
-            fs.WaitMsgHandler.new_tx_block(seq)
+            msg.WaitMsgHandler.new_block(seq)
 
         elif seq[0] == "NEW_TX":
             txid = seq[1]["transaction"]["txid"]
@@ -338,7 +339,7 @@ class NodeConnector(object):
         elif seq[0] == "NEW_MSG_BLOCK":
             print(current_port, "NEW_MSG_BLOCK")
             leader.new_msg_block(seq)
-            # fs.WaitMsgHandler.new_tx_block(seq)
+            msg.WaitMsgHandler.new_block(seq)
 
         elif seq[0] == "NEW_MSG":
             msgid = seq[1]["message"]["msgid"]
@@ -406,7 +407,7 @@ class BuddyHandler(tornado.websocket.WebSocketHandler):
 
         elif seq[0] == "NEW_TX_BLOCK":
             leader.new_tx_block(seq)
-            fs.WaitMsgHandler.new_tx_block(seq)
+            msg.WaitMsgHandler.new_block(seq)
 
         forward(seq)
 
@@ -502,7 +503,7 @@ class BuddyConnector(object):
 
         elif seq[0] == "NEW_TX_BLOCK":
             leader.new_tx_block(seq)
-            fs.WaitMsgHandler.new_tx_block(seq)
+            msg.WaitMsgHandler.new_block(seq)
 
         # else:
         forward(seq)
