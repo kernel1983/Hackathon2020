@@ -15,9 +15,8 @@ window.onload = () => {
         }
     }
 
-    ipcRenderer.on('file_added', (event, data) => {
+    ipcRenderer.on('file_added', (event, root_meta) => {
         // console.log(data)
-        var root_meta = this.JSON.parse(data)
         var folder_ele = this.document.getElementById('folder')
         while (folder_ele.firstChild) folder_ele.removeChild(folder_ele.firstChild)
 

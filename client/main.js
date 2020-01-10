@@ -37,7 +37,7 @@ function createWindow() {
   ipcMain.on('folder_load', (event) => {
     if (root_folder_hash_from_blockchain) {
       var root_folder_meta = get_meta(root_folder_hash_from_blockchain)
-      event.reply('file_added', JSON.stringify(root_folder_meta))
+      event.reply('file_added', root_folder_meta)
     } else {
       var root_folder_meta = {
         "type": "root_folder",
@@ -130,7 +130,7 @@ function createWindow() {
     request.write(data_in_json)
     request.end()
 
-    event.reply('file_added', JSON.stringify(root_folder_meta))
+    event.reply('file_added', root_folder_meta)
   })
 
   ipcMain.on('file_retrive', (event, filename, file_meta_hash) => {
@@ -189,8 +189,6 @@ function createWindow() {
     })
     request.write(data_in_json)
     request.end()
-
-    // event.reply('file_added', JSON.stringify(root_folder_meta))
   })
 
   ipcMain.on('chat_load', (event, content) => {
@@ -200,10 +198,6 @@ function createWindow() {
       port: 8001,
       path: '/get_chat?user_pk='+sender.getPublic().encode('hex'),
       method: 'GET',
-      // headers:{
-      //   'content-type':'application/json',
-      //   'content-length':data_in_json.length
-      // }
     }, function(res) {
       console.log("statusCode: ", res.statusCode)
       console.log("headers: ", res.headers)

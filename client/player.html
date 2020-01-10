@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <!-- https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP -->
+    <meta http-equiv="Content-Security-Policy" content="media-src 'self' http://127.0.0.1:2018/; default-src 'self'; script-src 'self'">
+    <meta http-equiv="X-Content-Security-Policy" content="default-src 'self'; script-src 'self'">
+
+    <title>FileStore Player</title>
+  </head>
+  <body>
+    <a href="index.html">Back</a>
+
+    <h1>Hello Player!</h1>
+    We are using Node.js <span id="node-version"></span>,
+    Chromium <span id="chrome-version"></span>,
+    and Electron <span id="electron-version"></span>.
+
+    <video src="http://127.0.0.1:2018/static/Spider-Man.Far.from.Home.2019.1080p.BluRay.H264.AAC-RARBG.mp4" controls="controls" autoplay width="100%;">
+      您的浏览器不支持 video 标签
+      </video>
+  </body>
+</html>
