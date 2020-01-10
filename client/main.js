@@ -154,6 +154,45 @@ function createWindow() {
     fs.closeSync(fd)
   })
 
+  ipcMain.on('chat_send', (event, content) => {
+    console.log(content)
+    const data_in_json = JSON.stringify({
+      message:{
+        msgid: uuid(),
+        sender: sender.getPublic().encode('hex'),
+        receiver: '2',
+        timestamp: (new Date()).getTime()/1000,
+        type: 'chat_msg',
+        content: content
+      },
+      signature: 's'
+    })
+    var request = http.request({
+      host: '127.0.0.1',
+      port: 8001,
+      path: '/new_msg',
+      method: 'POST',
+      headers:{
+        'content-type':'application/json',
+        'content-length':data_in_json.length
+      }
+    }, function(res) {
+      console.log("statusCode: ", res.statusCode)
+      console.log("headers: ", res.headers)
+      var _data=''
+      res.on('data', function(chunk){
+        _data += chunk
+      })
+      res.on('end', function(){
+        console.log("\n--->>\nresult:", _data)
+      })
+    })
+    request.write(data_in_json)
+    request.end()
+
+    // event.reply('file_added', JSON.stringify(root_folder_meta))
+  })
+
   // var ws = require("nodejs-websocket")
 
   // var ws_server = ws.createServer(function (conn) {
@@ -180,7 +219,8 @@ if (fs.existsSync('data/root_folder')) {
 var sender
 if (fs.existsSync('data/pirvate_key')) {
   const sk_string = fs.readFileSync('data/pirvate_key')
-  sender = ec.keyFromSecret(sk_string, 'hex')
+  console.log(sk_string.toString())
+  sender = ec.keyFromPrivate(sk_string, 'hex')
 }else{
   sender = ec.genKeyPair()
   fs.writeFileSync("data/pirvate_key", sender.getPrivate().toString())

@@ -93,11 +93,11 @@ class NewMsgHandler(tornado.web.RequestHandler):
         receiver_vk = receiver_sk.get_verifying_key()
         receiver = base64.b64encode(receiver_vk.to_string()).decode()
 
-        msg_id = uuid.uuid4().hex
+        msgid = uuid.uuid4().hex
         # amount = random.randint(1, 10)
         timestamp = int(time.time())
         message = {
-            "txid": msg_id,
+            "msgid": msgid,
             "sender": sender,
             "receiver": receiver,
             "timestamp": timestamp,
@@ -106,16 +106,16 @@ class NewMsgHandler(tornado.web.RequestHandler):
         }
         signature = sender_sk.sign(str(timestamp).encode("utf8"))
         data = {
-            "transaction": message,
+            "message": message,
             "signature": base64.b64encode(signature).decode()
         }
 
-        print("gen msg", msg_id)
+        print("gen msg", msgid)
         known_addresses_list = list(ControlHandler.known_addresses)
         addr = ["127.0.0.1", "8001"]
-        response = yield http_client.fetch("http://%s:%s/new_tx" % tuple(addr), method="POST", body=tornado.escape.json_encode(data))
+        response = yield http_client.fetch("http://%s:%s/new_msg" % tuple(addr), method="POST", body=tornado.escape.json_encode(data))
 
-        self.finish({"msg_id": msg_id})
+        self.finish({"msgid": msgid})
 
 
 class GetMsgHandler(tornado.web.RequestHandler):
