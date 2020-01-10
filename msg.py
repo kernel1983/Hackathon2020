@@ -27,12 +27,13 @@ import leader
 import database
 
 
-# class NewMsgHandler(tornado.web.RequestHandler):
-#     def post(self):
-#         msg = tornado.escape.json_decode(self.request.body)
+class GetChatHandler(tornado.web.RequestHandler):
+    def get(self):
+        user_pk = self.get_argument("user_pk")
+        chats = database.connection.query("SELECT * FROM graph"+tree.current_port+" WHERE sender = %s OR receiver = %s", user_pk, user_pk)
+        chats_data = [tornado.escape.json_decode(chat["data"]) for chat in chats]
+        self.finish({"chat":[chat["message"] for chat in chats_data if "message" in chat and chat["message"]["type"] == "chat_msg"]})
 
-#         tree.forward(["NEW_MSG", msg, time.time(), uuid.uuid4().hex])
-#         self.finish({"msg_id": msg["message"]["msg_id"]})
 
 class NewMsgHandler(tornado.web.RequestHandler):
     def get(self):
@@ -69,13 +70,13 @@ class WaitMsgHandler(tornado.websocket.WebSocketHandler):
         print("wait msg: client connected")
         if self not in self.clients:
             self.clients.add(self)
-        print('123', len(self.clients))
+        # print('123', len(self.clients))
 
     def on_close(self):
         print("wait msg: client disconnected")
         if self in self.clients:
             self.clients.remove(self)
-        print('234', len(self.clients))
+        # print('234', len(self.clients))
 
     # def send_to_client(self, msg):
     #     print("send message: %s" % msg)
@@ -89,7 +90,7 @@ class WaitMsgHandler(tornado.websocket.WebSocketHandler):
     @classmethod
     def new_block(cls, seq):
         # global WaitMsgHandler
-        print('456', len(cls.clients))
+        # print('456', len(cls.clients))
         for w in cls.clients:
             print("new_block", seq)
             w.write_message(tornado.escape.json_encode(seq))

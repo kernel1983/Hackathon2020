@@ -193,6 +193,33 @@ function createWindow() {
     // event.reply('file_added', JSON.stringify(root_folder_meta))
   })
 
+  ipcMain.on('chat_load', (event, content) => {
+    console.log(content)
+    var request = http.request({
+      host: '127.0.0.1',
+      port: 8001,
+      path: '/get_chat?user_pk='+sender.getPublic().encode('hex'),
+      method: 'GET',
+      // headers:{
+      //   'content-type':'application/json',
+      //   'content-length':data_in_json.length
+      // }
+    }, function(res) {
+      console.log("statusCode: ", res.statusCode)
+      console.log("headers: ", res.headers)
+      var _data=''
+      res.on('data', function(chunk){
+        _data += chunk
+      })
+      res.on('end', function(){
+        console.log("\n--->>\nresult:", _data)
+        event.reply('chat_loaded', JSON.parse(_data))
+      })
+    })
+    // request.write(data_in_json)
+    request.end()
+  })
+
   // var ws = require("nodejs-websocket")
 
   // var ws_server = ws.createServer(function (conn) {

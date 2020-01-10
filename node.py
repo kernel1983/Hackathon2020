@@ -43,6 +43,7 @@ class Application(tornado.web.Application):
                     (r"/new_msg", msg.NewMsgHandler),
                     (r"/get_msg", msg.GetMsgHandler),
                     (r"/wait_msg", msg.WaitMsgHandler),
+                    (r"/get_chat", msg.GetChatHandler),
                     ]
         settings = {"debug":True}
 

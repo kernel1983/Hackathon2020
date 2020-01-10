@@ -27,14 +27,14 @@ window.onload = () => {
         // console.log('Received Message: ' + evt.data);
         var data = JSON.parse(evt.data);
         console.log('Received Message: ' + data);
-        var msg = document.createElement('div')
         var msgid = data[1]['message']['msgid'];
         if (msgid in msg_got)
             return
 
-        msg_got[msgid] = msg;
+        var msg = document.createElement('div')
+        msg_got[msgid] = msg
         msg.innerText = data[1]['message']['content']
-        document.getElementById('box').appendChild(msg);
+        document.getElementById('box').appendChild(msg)
         console.log(data[1]['message']['content']);
 
         // ws.close();
@@ -48,4 +48,20 @@ window.onload = () => {
         const content = document.getElementById('content')
         ipcRenderer.send('chat_send', content.value)
     }
+
+    ipcRenderer.on('chat_loaded', (event, data) => {
+        // console.log(data)
+        var msgs = data['chat']
+        var box_ele = this.document.getElementById('box')
+        while (box_ele.firstChild) box_ele.removeChild(box_ele.firstChild)
+
+        for (var i in msgs) {
+            var msg = document.createElement('div')
+            var msgid = msgs[i]['msgid'];
+            msg_got[msgid] = msg
+            msg.innerText = msgs[i]['content']
+            box_ele.appendChild(msg)
+        }
+    })
+    ipcRenderer.send('chat_load')
 }
