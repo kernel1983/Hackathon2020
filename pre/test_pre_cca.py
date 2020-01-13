@@ -37,10 +37,10 @@ skA = PrivateKey.generate()
 skB = PrivateKey.generate()
 
 # D = (g^skA)^t, t = H(skA, r)
-# pkA
-# E = g^v, v = H(m, w)
+# V = g^v
+# E = g^e, v = H(m, w)
 # F = H(g^t, E)) xor (m||w)
-# s = v + skA*H(F, E)
+# s = e + v*H(F, E)
 
 
 t0 = time.time()
@@ -61,53 +61,60 @@ print('t = H(a, r)', t)
 D = skA.privkey.public_key.point * t
 print('D = (g^a)^t', D)
 
-# g2 = random.randrange(1, l192)
+g2 = random.randrange(1, l192)
 gt = skA.curve.generator * t
 print('g^t', gt)
 
-for i in range(100):
-    # E = g^v, v = H(m, w)
-    v = random.randrange(1, l192)
-    E = skA.curve.generator * v
-    # E = numbertheory.modular_exp(g2, r, l192)
-    print('E = g^v', E)
-
-    # F = H(g^t, E)) xor (m||w)
-    m = b'This is the PRE!This is the PRE!This is the PRE!' #64-16 bytes
-    w = b'1234567890abcdef'
-    d = blake2b()
-    d.update(util.number_to_string(gt.x(), l192))
-    d.update(util.number_to_string(E.x(), l192))
-    k = util.string_to_number(d.digest())
-
-    j = util.string_to_number(m+w)
-    c = j^k
-    # print('k', k)
-    F = util.number_to_string(c, l512)
-    # print('F = H(g^t, E)) xor m', F)
+m = b'This is the PRE!This is the PRE!This is the PRE!' #64-16 bytes
+w = b'1234567890abcdef'
 
 t1 = time.time()
-print(t1 - t0)
+print('Setup TIME >>>>>>>>>', t1 - t0)
+for x in range(10):
+    for y in range(100000):
+        v = random.randrange(1, l192)
+        V = numbertheory.modular_exp(g2, v, l192)
+
+        # E = g^e, v = H(m, w)
+        e = random.randrange(1, l192)
+        E = skA.curve.generator * e
+        # E = numbertheory.modular_exp(g2, r, l192)
+        # print('E = g^e', E)
+
+        # F = H(g^t, E)) xor (m||w)
+        d = blake2b()
+        d.update(util.number_to_string(gt.x(), l192))
+        d.update(util.number_to_string(E.x(), l192))
+        k = util.string_to_number(d.digest())
+
+        j = util.string_to_number(m+w)
+        c = j^k
+        # print('k', k)
+        F = util.number_to_string(c, l512)
+        # print('F = H(g^t, E)) xor m', F)
+
+    t2 = time.time()
+    print(t1 - t0)
 
 print('m', util.number_to_string(c^k, l512))
 
 
-# s = r + a*H(m, E)
+# s = e + v*H(m, E)
 d = blake2b()
 d.update(m)
 d.update(util.number_to_string(E.x(), l192))
 h = util.string_to_number(d.digest())
-s = r + a * h
-print('s = r + a*H(m, E)', s)
+s = e + v * h
+print('s = e + v*H(m, E)', s)
 
 
-# E+pk*H(m, E) = E+g*a*h = g*r+g*a*h = g*(r+a*h)
-# g*s = g*(r+a*h)
+# E+V*H(m, E) = E+g*v*h = g*r+g*v*h = g*(e+v*h)
+# g*s = g*(e+v*h)
 print('g^s', skA.curve.generator * s)
 # print('g^s', numbertheory.modular_exp(g2, s, l192))
-print('E*pk^H(m, E)', E + skA.curve.generator*(a*h))
-# print('E*g^(a*H(m, E))', (E * numbertheory.modular_exp(g2, a*h, l192))%l192)
-print('g^s ?= E*pk^H(m, E)', skA.curve.generator * s == E + skA.curve.generator*(a*h))
+print('E*V^H(m, E)', E + skA.curve.generator*(a*h))
+# print('E*g^(v*H(m, E))', (E * numbertheory.modular_exp(g2, a*h, l192))%l192)
+print('g^s ?= E*V^H(m, E)', skA.curve.generator * s == E + skA.curve.generator*(a*h))
 # print('g^s ?= E*pk^H(m, E)', numbertheory.modular_exp(g2, s, l192) == (E * numbertheory.modular_exp(g2, a*h, l192))%l192)
 
 

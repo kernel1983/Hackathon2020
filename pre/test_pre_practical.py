@@ -18,10 +18,10 @@ skA = PrivateKey.generate()
 skB = PrivateKey.generate()
 
 # D = (gECC^skA)^t, t = H(skA, r)
-# V = g^skA
-# E = g^v, v = H(m, w)
+# V = g^v, v <- Zp
+# E = g^e, e = H(m, w)
 # F = H(g^t, E)) xor (m||w)
-# s = v + skA*H(F, E)
+# s = e + v*H(F, E)
 
 
 t0 = time.time()
@@ -57,29 +57,28 @@ gECC_t = D*numbertheory.inverse_mod(a, skA.curve.order)
 print('gECC^t', gECC_t)
 # print('gECC^t', gECC*t)
 
-# V = g^skA
-V = numbertheory.modular_exp(g, a, l192)
-# V = g**a
-print('V', V)
-
-
 m = b'This is the PRE!This is the PRE!This is the PRE!' #64-16 bytes
 w = b'1234567890abcdef'
 
 t1 = time.time()
-for i in range(10):
-    for i in range(100000):
+print('Setup TIME >>>>>>>>>', t1 - t0)
+for x in range(10):
+    for y in range(1000):
+        # V = g^v
+        v = random.randrange(1, l192)
+        V = numbertheory.modular_exp(g, v, l192)
+        # print('V', V)
 
-        # E = g^v, v = H(m, w)
+        # E = g^e, e = H(m, w)
         d = blake2b()
         d.update(m)
         d.update(w)
-        v = util.string_to_number(d.digest())
-        # print('v = H(m, w)', v)
+        e = util.string_to_number(d.digest())
+        # print('e = H(m, w)', e)
 
-        E = numbertheory.modular_exp(g, v, l192)
+        E = numbertheory.modular_exp(g, e, l192)
         # E = skA.curve.generator * r
-        # print('E = g^v', E)
+        # print('E = g^e', E)
 
         # F = H(g^t, E)) xor (m||w)
         d = blake2b()
@@ -93,22 +92,22 @@ for i in range(10):
         # print('F = H(gECC^t, E)) xor (m||w)', F)
 
     t2 = time.time()
-    print('TIME >>>>>>>>>', t2 - t1)
+    print('TIME >>>>>>>>>', t2 - t0)
 
 print('m||w', util.number_to_string(c^k, l512))
 
-# s = v + skA*H(F, E)
+# s = e + v*H(F, E)
 d = blake2b()
 d.update(F)
 d.update(util.number_to_string(E, l192))
 h = util.string_to_number(d.digest())
-s = v + a * h
-print('s = v + sk_A*H(F, E)', s)
+s = e + v * h
+print('s = e + v*H(F, E)', s)
 
 
 print('g^s', numbertheory.modular_exp(g, s, l192))
-print('E*g^(a*H(F, E))', (E * numbertheory.modular_exp(g, a*h, l192))%l192)
-print('g^s ?= E*pk^H(F, E)', numbertheory.modular_exp(g, s, l192) == (E * numbertheory.modular_exp(g, a*h, l192))%l192)
+print('E*g^(v*H(F, E))', (E * numbertheory.modular_exp(g, v*h, l192))%l192)
+print('g^s ?= E*V^H(F, E)', numbertheory.modular_exp(g, s, l192) == (E * numbertheory.modular_exp(g, v*h, l192))%l192)
 
 #rk = (g^b/g^a)^t
 b = skB.privkey.secret_multiplier
