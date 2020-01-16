@@ -169,7 +169,7 @@ class ObjectHandler(tornado.web.RequestHandler):
         sig = signing.Signature.from_bytes(bytes.fromhex(str(signature)))
         assert sig.verify((object_hash+timestamp).encode("utf8"), vk)
 
-        print(tree.current_groupid, len(self.request.body), self.request.body)
+        print(tree.current_nodeid, len(self.request.body), self.request.body)
 
 class UserHandler(tornado.web.RequestHandler):
     def get(self):
@@ -193,15 +193,15 @@ class UserHandler(tornado.web.RequestHandler):
         #     user_bin = bin(int(user_id[2:], 16))[2:].zfill(64*4)
         #     print(tree.current_port, user_id[2:], user_bin)
 
-        #     groupids = tree.node_neighborhoods.keys()
+        #     nodeids = tree.node_neighborhoods.keys()
         #     distance = 0
-        #     for i in groupids:
-        #         new_distance = tree.group_distance(i, user_bin)
+        #     for i in nodeids:
+        #         new_distance = tree.node_distance(i, user_bin)
         #         if new_distance < distance or not distance:
         #             distance = new_distance 
-        #             groupid = i
-        #     print(tree.current_port, tree.current_groupid, group_id, distance)
-        #     res["node"] = [groupid, tree.node_neighborhoods[group_id]]
+        #             nodeid = i
+        #     print(tree.current_port, tree.current_nodeid, node_id, distance)
+        #     res["node"] = [nodeid, tree.node_neighborhoods[node_id]]
         longest = miner.longest_chain() or []
         for block in longest:
             data = tornado.escape.json_decode(block["data"])
@@ -216,7 +216,7 @@ class UserHandler(tornado.web.RequestHandler):
         folder_hash = self.get_argument("folder_hash")
         block_size = int(self.get_argument("block_size"))
         folder_size = int(self.get_argument("folder_size"))
-        groupid = self.get_argument("groupid")
+        nodeid = self.get_argument("nodeid")
         capsule = self.get_argument("capsule")
         timestamp = self.get_argument("timestamp")
         signature = self.get_argument("signature")
@@ -231,7 +231,7 @@ class UserHandler(tornado.web.RequestHandler):
         open("data/%s/%s" % (user_id, folder_hash), "wb").write(self.request.body)
         open("data/%s/%s_capsule" % (user_id, folder_hash), "wb").write(bytes.fromhex(capsule))
 
-        data = {"folder_hash": folder_hash, "block_size":block_size, "folder_size": folder_size, "groupid": groupid, "user_id": user_id, "by": tree.current_port}
+        data = {"folder_hash": folder_hash, "block_size":block_size, "folder_size": folder_size, "nodeid": nodeid, "user_id": user_id, "by": tree.current_port}
         tree.forward(["UPDATE_HOME", user_id, data, time.time(), uuid.uuid4().hex])
         self.finish()
 

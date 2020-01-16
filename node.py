@@ -30,7 +30,7 @@ class Application(tornado.web.Application):
                     (r"/available_branches", AvailableBranchesHandler),
                     (r"/get_chain", miner.GetChainHandler),
                     (r"/get_block", miner.GetBlockHandler),
-                    (r"/get_group", GetGroupHandler),
+                    (r"/get_node", GetNodeHandler),
                     (r"/disconnect", DisconnectHandler),
                     (r"/broadcast", BroadcastHandler),
                     (r"/new_tx", NewTxHandler),
@@ -58,26 +58,26 @@ class AvailableBranchesHandler(tornado.web.RequestHandler):
         #     parents.append([node.host, node.port])
         self.finish({"available_branches": branches,
                      #"parents": parents,
-                     "groupid": tree.current_groupid})
+                     "nodeid": tree.current_nodeid})
 
-class GetGroupHandler(tornado.web.RequestHandler):
+class GetNodeHandler(tornado.web.RequestHandler):
     def get(self):
-        groupid = self.get_argument("groupid")
-        target_groupid = groupid
+        nodeid = self.get_argument("nodeid")
+        target_nodeid = nodeid
         score = None
         # print(tree.current_port, tree.node_neighborhoods)
         for j in [tree.node_neighborhoods, tree.node_parents]:
             for i in j:
-                new_score = tree.group_distance(groupid, i)
+                new_score = tree.node_distance(nodeid, i)
                 if score is None or new_score < score:
                     score = new_score
-                    target_groupid = i
-                    address = j[target_groupid]
+                    target_nodeid = i
+                    address = j[target_nodeid]
                 # print(i, new_score)
 
         self.finish({"address": address,
-                     "groupid": target_groupid,
-                     "current_groupid": tree.current_groupid})
+                     "nodeid": target_nodeid,
+                     "current_nodeid": tree.current_nodeid})
 
 class DisconnectHandler(tornado.web.RequestHandler):
     def get(self):
@@ -90,7 +90,7 @@ class DisconnectHandler(tornado.web.RequestHandler):
 
 class BroadcastHandler(tornado.web.RequestHandler):
     def get(self):
-        test_msg = ["TEST_MSG", tree.current_groupid, time.time(), uuid.uuid4().hex]
+        test_msg = ["TEST_MSG", tree.current_nodeid, time.time(), uuid.uuid4().hex]
 
         tree.forward(test_msg)
         self.finish({"test_msg": test_msg})
@@ -108,7 +108,7 @@ class DashboardHandler(tornado.web.RequestHandler):
         branches.sort(key=lambda l:len(l[2]))
 
         parents = []
-        self.write("<br>current_groupid: %s <br>" % tree.current_groupid)
+        self.write("<br>current_nodeid: %s <br>" % tree.current_nodeid)
         self.write("<br>available_branches:<br>")
         for branch in branches:
             self.write("%s %s %s <br>" %branch)
@@ -126,14 +126,14 @@ class DashboardHandler(tornado.web.RequestHandler):
             self.write("%s %s<br>" %(node.host, node.port))
 
         self.write("<br>node_parents:<br>")
-        for groupid in tree.node_parents:
-            host, port = tree.node_parents[groupid][0]
-            self.write("%s:%s %s<br>" %(groupid, host, port))
+        for nodeid in tree.node_parents:
+            host, port = tree.node_parents[nodeid][0]
+            self.write("%s:%s %s<br>" %(nodeid, host, port))
 
         self.write("<br>node_neighborhoods:<br>")
-        for groupid in tree.node_neighborhoods:
-            host, port = tree.node_neighborhoods[groupid][0]
-            self.write("%s:%s %s<br>" %(groupid, host, port))
+        for nodeid in tree.node_neighborhoods:
+            host, port = tree.node_neighborhoods[nodeid][0]
+            self.write("%s:%s %s<br>" %(nodeid, host, port))
 
         self.finish()
 

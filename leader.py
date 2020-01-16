@@ -116,7 +116,7 @@ def new_tx_block(seq):
         receiver_bytes = base64.b64decode(receiver.encode('utf8'))
         receiver_binary = bin(string_to_number(receiver_bytes))[2:]
         # print(tree.current_port, "receiver", receiver_binary)
-        if not sender_binary.startswith(tree.current_groupid) and not receiver_binary.startswith(tree.current_groupid):
+        if not sender_binary.startswith(tree.current_nodeid) and not receiver_binary.startswith(tree.current_nodeid):
             related_block = False
 
     try:
@@ -161,7 +161,7 @@ def new_msg_block(seq):
         receiver_bytes = base64.b64decode(receiver.encode('utf8'))
         receiver_binary = bin(string_to_number(receiver_bytes))[2:]
         # print(tree.current_port, "receiver", receiver_binary)
-        if not sender_binary.startswith(tree.current_groupid) and not receiver_binary.startswith(tree.current_groupid):
+        if not sender_binary.startswith(tree.current_nodeid) and not receiver_binary.startswith(tree.current_nodeid):
             related_block = False
 
     try:

@@ -73,14 +73,14 @@ $(function(){
 
         }else if(seq[0] == "ADDRESS2"){
             port = seq[2];
-            groupid = seq[3];
+            nodeid = seq[3];
             node = graph.newNode({label: port});
             nodes_by_port[port] = node;
-            nodes[groupid] = node;
-            if(groupid != ""){
-                parent_groupid = groupid.substring(0, groupid.length-1);
-                // console.log(nodes[parent_groupid]);
-                graph.newEdge(nodes[groupid], nodes[parent_groupid], {color: '#3399FF'});
+            nodes[nodeid] = node;
+            if(nodeid != ""){
+                parent_nodeid = nodeid.substring(0, nodeid.length-1);
+                // console.log(nodes[parent_nodeid]);
+                graph.newEdge(nodes[nodeid], nodes[parent_nodeid], {color: '#3399FF'});
             }
         }
     };

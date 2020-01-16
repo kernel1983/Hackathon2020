@@ -26,22 +26,22 @@ from ecdsa import SigningKey, NIST256p
 incremental_port = 8000
 
 @tornado.gen.coroutine
-def get_group(target):
+def get_node(target):
     known_addresses_list = list(ControlHandler.known_addresses)
     addr = random.choice(known_addresses_list)
     http_client = tornado.httpclient.AsyncHTTPClient()
     while True:
-        url = "http://%s:%s/get_group?groupid=%s" % (tuple(addr)+(target,))
+        url = "http://%s:%s/get_node?nodeid=%s" % (tuple(addr)+(target,))
         try:
             response = yield http_client.fetch(url)#, method="POST", body=tornado.escape.json_encode(data)
         except Exception as e:
             print("Error: %s" % e)
         print(addr, response.body)
         res = tornado.escape.json_decode(response.body)
-        if res["groupid"] == res["current_groupid"]:
+        if res["nodeid"] == res["current_nodeid"]:
             break
         addr = res["address"][0]
-    yield addr, res["groupid"]
+    yield addr, res["nodeid"]
     return
 
 class Application(tornado.web.Application):
@@ -228,12 +228,12 @@ class NewUserHandler(tornado.web.RequestHandler):
         block_size = len(ciphertext)
         folder_hash = hashlib.sha1(ciphertext).hexdigest()
         folder_hash_binary = bin(int(folder_hash, 16))[2:].zfill(32*4)
-        addr, groupid = yield get_group(folder_hash_binary)
+        addr, nodeid = yield get_node(folder_hash_binary)
         print("ciphertext", len(ciphertext), "capsule", capsule.to_bytes().hex())
 
         http_client = tornado.httpclient.AsyncHTTPClient()
-        url = "http://%s:%s/user?user_id=%s&folder_hash=%s&block_size=%s&folder_size=%s&groupid=%s&capsule=%s&timestamp=%s&signature=%s" \
-                % (tuple(addr)+(user_id, folder_hash, block_size, folder_size, groupid, capsule.to_bytes().hex(), timestamp, bytes(signature).hex()))
+        url = "http://%s:%s/user?user_id=%s&folder_hash=%s&block_size=%s&folder_size=%s&nodeid=%s&capsule=%s&timestamp=%s&signature=%s" \
+                % (tuple(addr)+(user_id, folder_hash, block_size, folder_size, nodeid, capsule.to_bytes().hex(), timestamp, bytes(signature).hex()))
         try:
             response = yield http_client.fetch(url, method="POST", body=ciphertext)
         except Exception as e:
@@ -265,19 +265,19 @@ class NewFileHandler(tornado.web.RequestHandler):
             response = yield http_client.fetch(url)#, method="POST", body=tornado.escape.json_encode(data)
             user = tornado.escape.json_decode(response.body)
             # print(user)
-            groupid = user["groupid"]
+            nodeid = user["nodeid"]
             folder_hash = user["folder_hash"]
         except Exception as e:
             print("Error: %s" % e)
 
-        # get content object and capsule from the group
+        # get content object and capsule from the node
         timestamp = time.time()
         sk_sign = signing.Signer(sk)
         signature = sk_sign((str(folder_hash)+str(timestamp)).encode("utf8"))
         assert signature.verify((str(folder_hash)+str(timestamp)).encode("utf8"), vk)
 
-        addr, _ = yield get_group(groupid)
-        print(_, groupid)
+        addr, _ = yield get_node(nodeid)
+        print(_, nodeid)
         url = "http://%s:%s/object?hash=%s&user_id=%s&timestamp=%s&signature=%s" % (tuple(addr)+(folder_hash, user_id, str(timestamp), bytes(signature).hex()))
         response = yield http_client.fetch(url)
         ciphertext = response.body
@@ -299,7 +299,7 @@ class NewFileHandler(tornado.web.RequestHandler):
         sha1 = hashlib.sha1(ciphertext).hexdigest()
         sha1_binary = bin(int(sha1, 16))[2:].zfill(32*4)
         print(sha1_binary, len(sha1_binary), sha1, 16)
-        addr, groupid = yield get_group(sha1_binary)
+        addr, nodeid = yield get_node(sha1_binary)
 
         timestamp = time.time()
         sk_sign = signing.Signer(sk)
@@ -313,7 +313,7 @@ class NewFileHandler(tornado.web.RequestHandler):
 
         # update
         data = tornado.escape.json_decode(cleartext)
-        data["filename"] = [sha1, len(ciphertext), groupid, time.time()]
+        data["filename"] = [sha1, len(ciphertext), nodeid, time.time()]
 
         # encode
         content = tornado.escape.json_encode(data).encode("utf8")
@@ -322,7 +322,7 @@ class NewFileHandler(tornado.web.RequestHandler):
         block_size = len(ciphertext)
         folder_hash = hashlib.sha1(ciphertext).hexdigest()
         folder_hash_binary = bin(int(folder_hash, 16))[2:].zfill(32*4)
-        addr, groupid = yield get_group(folder_hash_binary)
+        addr, nodeid = yield get_node(folder_hash_binary)
         print("ciphertext", len(ciphertext), "capsule", capsule.to_bytes().hex())
 
         # put
@@ -331,8 +331,8 @@ class NewFileHandler(tornado.web.RequestHandler):
         signature = sk_sign(str(timestamp).encode("utf8"))
         assert signature.verify(str(timestamp).encode("utf8"), vk)
 
-        url = "http://%s:%s/user?user_id=%s&folder_hash=%s&block_size=%s&folder_size=%s&groupid=%s&capsule=%s&timestamp=%s&signature=%s" \
-                % (tuple(addr)+(user_id, folder_hash, block_size, folder_size, groupid, capsule.to_bytes().hex(), timestamp, bytes(signature).hex()))
+        url = "http://%s:%s/user?user_id=%s&folder_hash=%s&block_size=%s&folder_size=%s&nodeid=%s&capsule=%s&timestamp=%s&signature=%s" \
+                % (tuple(addr)+(user_id, folder_hash, block_size, folder_size, nodeid, capsule.to_bytes().hex(), timestamp, bytes(signature).hex()))
         try:
             response = yield http_client.fetch(url, method="POST", body=ciphertext)
         except Exception as e:
@@ -431,7 +431,7 @@ class VisualizeDataHandler(tornado.websocket.WebSocketHandler):
     def on_message(self, message):
         # logging.info("got message %r", message)
         print("got message ", message)
-        # self.write("<br>current_groupid: %s <br>" % message)
+        # self.write("<br>current_nodeid: %s <br>" % message)
         VisualizeDataHandler.send_updates(message)
 
 # def boot():
