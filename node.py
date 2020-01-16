@@ -26,7 +26,6 @@ import msg
 class Application(tornado.web.Application):
     def __init__(self):
         handlers = [(r"/node", tree.NodeHandler),
-                    (r"/buddy", tree.BuddyHandler),
                     (r"/leader", leader.LeaderHandler),
                     (r"/available_branches", AvailableBranchesHandler),
                     (r"/get_chain", miner.GetChainHandler),
@@ -58,7 +57,6 @@ class AvailableBranchesHandler(tornado.web.RequestHandler):
         # for node in tree.NodeConnector.parent_nodes:
         #     parents.append([node.host, node.port])
         self.finish({"available_branches": branches,
-                     "buddy":len(tree.available_buddies),
                      #"parents": parents,
                      "groupid": tree.current_groupid})
 
@@ -86,10 +84,6 @@ class DisconnectHandler(tornado.web.RequestHandler):
         while tree.NodeConnector.parent_nodes:
             # connector.remove_node = False
             tree.NodeConnector.parent_nodes.pop().close()
-
-        while tree.BuddyConnector.buddy_nodes:
-            # connector.remove_node = False
-            tree.BuddyConnector.buddy_nodes.pop().close()
 
         self.finish({})
         tornado.ioloop.IOLoop.instance().stop()
@@ -119,19 +113,9 @@ class DashboardHandler(tornado.web.RequestHandler):
         for branch in branches:
             self.write("%s %s %s <br>" %branch)
 
-        self.write("<br>available_buddies: %s<br>" % len(tree.available_buddies))
-        for buddy in tree.available_buddies:
-            self.write("%s %s <br>" % buddy)
-
         self.write("<br>parent_nodes:<br>")
         for node in tree.NodeConnector.parent_nodes:
             self.write("%s %s<br>" %(node.host, node.port))
-
-        self.write("<br>available_children_buddies:<br>")
-        for k,vs in tree.available_children_buddies.items():
-            self.write("%s<br>" % k)
-            for v1,v2 in vs:
-                self.write("%s %s<br>" % (v1,v2))
 
         self.write("<br>LeaderHandler:<br>")
         for node in leader.LeaderHandler.leader_nodes:
