@@ -27,7 +27,7 @@ control_port = 0
 current_host = None
 current_port = None
 current_branch = None
-current_groupid = None
+current_nodeid = None
 public_key = None
 
 available_branches = set()
@@ -50,11 +50,10 @@ def forward(seq):
         # if not child_node.stream.closed:
         child_node.write_message(message)
 
-    for parent_connector in NodeConnector.parent_nodes:
-        # if parent_connector.conn.close_code is not None:
-        parent_connector.conn.write_message(message)
+    if NodeConnector.parent_node:
+        NodeConnector.parent_node.conn.write_message(message)
 
-def group_distance(a, b):
+def node_distance(a, b):
     if len(a) > len(b):
         a, b = b, a
     i = 0
@@ -124,7 +123,7 @@ class NodeHandler(tornado.websocket.WebSocketHandler):
 
     @tornado.gen.coroutine
     def on_message(self, message):
-        global current_groupid
+        global current_nodeid
         global node_neighborhoods
 
         seq = tornado.escape.json_decode(message)
@@ -141,12 +140,12 @@ class NodeHandler(tornado.websocket.WebSocketHandler):
                 available_branches.add(tuple([branch_host, branch_port, branch]))
 
         elif seq[0] == "NODE_NEIGHBOURHOODS":
-            groupid = seq[1]
-            if current_groupid is not None and group_distance(groupid, current_groupid) > setting.NEIGHBOURHOODS_HOPS:
+            nodeid = seq[1]
+            if current_nodeid is not None and node_distance(nodeid, current_nodeid) > setting.NEIGHBOURHOODS_HOPS:
                 return
-            hosts = node_neighborhoods.get(groupid, [])
-            node_neighborhoods[groupid] = [list(i) for i in set([tuple(i) for i in hosts])]
-            # print(current_port, "NODE_NEIGHBOURHOODS", current_groupid, groupid, node_neighborhoods)
+            hosts = node_neighborhoods.get(nodeid, [])
+            node_neighborhoods[nodeid] = [list(i) for i in set([tuple(i) for i in hosts])]
+            # print(current_port, "NODE_NEIGHBOURHOODS", current_nodeid, nodeid, node_neighborhoods)
 
         elif seq[0] == "NEW_CHAIN_BLOCK":
             miner.new_block(seq)
@@ -183,7 +182,7 @@ class NodeHandler(tornado.websocket.WebSocketHandler):
 # connector to parent node
 class NodeConnector(object):
     """Websocket Client"""
-    parent_nodes = set()
+    parent_node = None
 
     def __init__(self, to_host, to_port, branch):
         self.host = to_host
@@ -200,8 +199,8 @@ class NodeConnector(object):
                                 connect_timeout = 10.0)
 
     def close(self):
-        if self in NodeConnector.parent_nodes:
-            NodeConnector.parent_nodes.remove(self)
+        if NodeConnector.parent_node:
+            NodeConnector.parent_node = None
         self.conn.close()
 
     def on_connect(self, future):
@@ -209,8 +208,8 @@ class NodeConnector(object):
 
         try:
             self.conn = future.result()
-            if self not in NodeConnector.parent_nodes:
-                NodeConnector.parent_nodes.add(self)
+            if not NodeConnector.parent_node:
+                NodeConnector.parent_node = self
 
             available_branches.add(tuple([current_host, current_port, self.branch+"0"]))
             available_branches.add(tuple([current_host, current_port, self.branch+"1"]))
@@ -218,8 +217,8 @@ class NodeConnector(object):
             message = ["AVAILABLE_BRANCHES", [[current_host, current_port, self.branch+"0"], [current_host, current_port, self.branch+"1"]], uuid.uuid4().hex]
             self.conn.write_message(tornado.escape.json_encode(message))
 
-            if current_groupid is not None:
-                message = ["NODE_NEIGHBOURHOODS", current_groupid, uuid.uuid4().hex]
+            if current_nodeid is not None:
+                message = ["NODE_NEIGHBOURHOODS", current_nodeid, uuid.uuid4().hex]
                 self.conn.write_message(tornado.escape.json_encode(message))
 
         except:
@@ -231,7 +230,7 @@ class NodeConnector(object):
     @tornado.gen.coroutine
     def on_message(self, message):
         global current_branch
-        global current_groupid
+        global current_nodeid
         global node_parents
         global node_neighborhoods
 
@@ -266,20 +265,20 @@ class NodeConnector(object):
             # for node in NodeHandler.child_nodes.values():
             #     node.write_message(message)
 
-            m = ["NODE_NEIGHBOURHOODS", current_groupid, uuid.uuid4().hex]
+            m = ["NODE_NEIGHBOURHOODS", current_nodeid, uuid.uuid4().hex]
             forward(m)
 
         elif seq[0] == "GROUP_ID":
-            current_groupid = seq[1]
+            current_nodeid = seq[1]
 
             if control_node:
-                control_node.write_message(tornado.escape.json_encode(["ADDRESS2", current_host, current_port, current_groupid]))
+                control_node.write_message(tornado.escape.json_encode(["ADDRESS2", current_host, current_port, current_nodeid]))
 
-            print(current_port, "GROUP_ID", current_groupid, seq[-1])
-            # print(current_port, "NODE_PARENTS", node_parents[current_groupid])
+            print(current_port, "GROUP_ID", current_nodeid, seq[-1])
+            # print(current_port, "NODE_PARENTS", node_parents[current_nodeid])
 
             if self.conn and not self.conn.stream.closed:
-                m = ["NODE_NEIGHBOURHOODS", current_groupid, uuid.uuid4().hex]
+                m = ["NODE_NEIGHBOURHOODS", current_nodeid, uuid.uuid4().hex]
                 self.conn.write_message(tornado.escape.json_encode(m))
             return
 
@@ -292,12 +291,12 @@ class NodeConnector(object):
             return
 
         elif seq[0] == "NODE_NEIGHBOURHOODS":
-            groupid = seq[1]
-            if current_groupid is not None and group_distance(groupid, current_groupid) > setting.NEIGHBOURHOODS_HOPS:
+            nodeid = seq[1]
+            if current_nodeid is not None and node_distance(nodeid, current_nodeid) > setting.NEIGHBOURHOODS_HOPS:
                 return
-            hosts = node_neighborhoods.get(groupid, [])
-            node_neighborhoods[groupid] = [list(i) for i in set([tuple(i) for i in hosts])]
-            # print(current_port, "NODE_NEIGHBOURHOODS", current_groupid, groupid, node_neighborhoods)
+            hosts = node_neighborhoods.get(nodeid, [])
+            node_neighborhoods[nodeid] = [list(i) for i in set([tuple(i) for i in hosts])]
+            # print(current_port, "NODE_NEIGHBOURHOODS", current_nodeid, nodeid, node_neighborhoods)
 
         elif seq[0] == "NEW_CHAIN_BLOCK":
             miner.new_block(seq)
@@ -358,14 +357,16 @@ def bootstrap(addr):
 
     if branches:
         available_branches = set([tuple(i) for i in branches])
+        host, port, branch = branches[0]
         current_branch = tuple(branches[0])
-        NodeConnector(*branches[0])
+        NodeConnector(host, port, branch)
+        get_chain(host, port)
     else:
         tornado.ioloop.IOLoop.instance().call_later(1.0, functools.partial(bootstrap, addr))
 
 @tornado.gen.coroutine
 def on_message(msg):
-    global current_groupid
+    global current_nodeid
     global available_branches
 
     if msg is None:
@@ -383,14 +384,14 @@ def on_message(msg):
             # root node
             available_branches.add(tuple([current_host, current_port, "0"]))
             available_branches.add(tuple([current_host, current_port, "1"]))
-            current_groupid = ""
+            current_nodeid = ""
 
         else:
             bootstrap(seq[1][0])
 
 @tornado.gen.coroutine
 def connect():
-    global current_groupid
+    global current_nodeid
     global available_branches
 
     # print("\n\n")
@@ -399,36 +400,38 @@ def connect():
         tornado.websocket.websocket_connect("ws://%s:%s/control" % (control_host, control_port), callback=on_connect, on_message_callback=on_message)
 
     if setting.BOOTSTRAP_BY_PORT_NO:
-        if NodeConnector.parent_nodes:
+        if NodeConnector.parent_node:
             return
         if int(current_port) > 8001:
             no = int(current_port) - 8000
             port = (no >> 1) + 8000
             NodeConnector(current_host, port, bin(no)[3:])
-
-            http_client = tornado.httpclient.AsyncHTTPClient()
-            local_chain = [i["hash"] for i in miner.longest_chain()]
-            # try:
-            response = yield http_client.fetch("http://%s:%s/get_chain" % (current_host, port))
-            result = tornado.escape.json_decode(response.body)
-            chain = result["chain"]
-            if len(chain) > len(local_chain):
-                block_hashes_to_fetch = set(chain)-set(local_chain)
-                print("fetch chain", block_hashes_to_fetch)
-                for block_hash in block_hashes_to_fetch:
-                    response = yield http_client.fetch("http://%s:%s/get_block?hash=%s" % (current_host, port, block_hash))
-                    result = tornado.escape.json_decode(response.body)
-                    block = result["block"]
-                    database.connection.execute("INSERT INTO chain"+current_port+" (hash, prev_hash, height, nonce, difficulty, identity, timestamp, data) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)", 
-                        block["hash"], block["prev_hash"], block["height"], block["nonce"], block["difficulty"], block["identity"], block["timestamp"], block["data"])
-
-            # except Exception as e:
-            #     print("Error: %s" % e)
+            get_chain(current_host, port)
 
         else:
             available_branches.add(tuple([current_host, current_port, "0"]))
             available_branches.add(tuple([current_host, current_port, "1"]))
-            current_groupid = ""
+            current_nodeid = ""
+
+@tornado.gen.coroutine
+def get_chain(host, port):
+    http_client = tornado.httpclient.AsyncHTTPClient()
+    local_chain = [i["hash"] for i in miner.longest_chain()]
+    response = yield http_client.fetch("http://%s:%s/get_chain" % (host, port))
+    result = tornado.escape.json_decode(response.body)
+    chain = result["chain"]
+    if len(chain) > len(local_chain):
+        block_hashes_to_fetch = set(chain)-set(local_chain)
+        print("fetch chain", block_hashes_to_fetch)
+        for block_hash in block_hashes_to_fetch:
+            response = yield http_client.fetch("http://%s:%s/get_block?hash=%s" % (host, port, block_hash))
+            result = tornado.escape.json_decode(response.body)
+            block = result["block"]
+            try:
+                database.connection.execute("INSERT INTO chain"+current_port+" (hash, prev_hash, height, nonce, difficulty, identity, timestamp, data) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)", 
+                    block["hash"], block["prev_hash"], block["height"], block["nonce"], block["difficulty"], block["identity"], block["timestamp"], block["data"])
+            except Exception as e:
+                print("Error: %s" % e)
 
 
 def main():

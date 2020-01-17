@@ -314,7 +314,7 @@ class LeaderConnector(object):
             if self not in LeaderConnector.leader_nodes:
                 LeaderConnector.leader_nodes.add(self)
         except:
-            print(tree.current_port, "reconnect to leader", self.port)
+            print(tree.current_port, "reconnect to leader", self.host, self.port)
             tornado.ioloop.IOLoop.instance().call_later(1.0, self.connect)
 
 

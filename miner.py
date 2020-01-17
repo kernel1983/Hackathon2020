@@ -88,7 +88,7 @@ def mining():
     new_identity = "%s:%s"%(tree.current_host, tree.current_port)
     new_timestamp = str(time.time())
     for i in range(10):
-        block_hash = hashlib.sha256((new_identity + new_timestamp + identity + data + longest_hash + str(difficulty) + str(nonce)).encode('utf8')).hexdigest()
+        block_hash = hashlib.sha256((longest_hash + data + new_timestamp + str(difficulty) + str(nonce)).encode('utf8')).hexdigest()
         if int(block_hash, 16) < int("1" * (256-difficulty), 2):
             if longest:
                 print(tree.current_port, 'height', len(longest), longest[-1].timestamp, longest[0].timestamp, 'timecost', longest[-1].timestamp - longest[0].timestamp)

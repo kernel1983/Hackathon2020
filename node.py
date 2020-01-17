@@ -53,11 +53,9 @@ class AvailableBranchesHandler(tornado.web.RequestHandler):
     def get(self):
         branches = list(tree.available_branches)
 
-        # parents = []
-        # for node in tree.NodeConnector.parent_nodes:
-        #     parents.append([node.host, node.port])
+        # parent = tree.NodeConnector.parent_node:
         self.finish({"available_branches": branches,
-                     #"parents": parents,
+                     #"parent": parent,
                      "nodeid": tree.current_nodeid})
 
 class GetNodeHandler(tornado.web.RequestHandler):
@@ -81,9 +79,9 @@ class GetNodeHandler(tornado.web.RequestHandler):
 
 class DisconnectHandler(tornado.web.RequestHandler):
     def get(self):
-        while tree.NodeConnector.parent_nodes:
+        if tree.NodeConnector.parent_node:
             # connector.remove_node = False
-            tree.NodeConnector.parent_nodes.pop().close()
+            tree.NodeConnector.parent_node.close()
 
         self.finish({})
         tornado.ioloop.IOLoop.instance().stop()
@@ -113,9 +111,9 @@ class DashboardHandler(tornado.web.RequestHandler):
         for branch in branches:
             self.write("%s %s %s <br>" %branch)
 
-        self.write("<br>parent_nodes:<br>")
-        for node in tree.NodeConnector.parent_nodes:
-            self.write("%s %s<br>" %(node.host, node.port))
+        self.write("<br>parent_node:<br>")
+        if tree.NodeConnector.parent_node:
+            self.write("%s %s<br>" %(tree.NodeConnector.parent_node.host, tree.NodeConnector.parent_node.port))
 
         self.write("<br>LeaderHandler:<br>")
         for node in leader.LeaderHandler.leader_nodes:

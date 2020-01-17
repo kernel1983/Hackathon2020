@@ -4,7 +4,7 @@ import tree
 
 connection = torndb.Connection("127.0.0.1", "nodes", user="root", password="root")
 
-create_chain = """CREATE TABLE `chain%s` (
+create_chain = """CREATE TABLE IF NOT EXISTS `chain%s` (
     `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
     `hash` varchar(64) NOT NULL DEFAULT '',
     `prev_hash` varchar(64) NOT NULL DEFAULT '',
@@ -20,7 +20,7 @@ create_chain = """CREATE TABLE `chain%s` (
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 """
 
-create_graph = """CREATE TABLE `graph%s` (
+create_graph = """CREATE TABLE IF NOT EXISTS `graph%s` (
     `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
     `txid` varchar(128) NOT NULL,
     `timestamp` int(11) unsigned DEFAULT NULL,
@@ -71,11 +71,12 @@ def main():
         return
     # if not connection.get("SELECT table_name FROM information_schema.tables WHERE table_schema = 'nodes' AND table_name = %s", tree.current_port+"chain"):
     # connection.execute("DROP TABLE IF EXISTS chain%s" % tree.current_port)
-    # connection.execute(create_chain % tree.current_port)
-    # connection.execute("TRUNCATE %schain" % tree.current_port)
+    connection.execute(create_chain % tree.current_port)
+    # connection.execute("TRUNCATE chain%s" % tree.current_port)
 
     # connection.execute("DROP TABLE IF EXISTS graph%s" % tree.current_port)
-    # connection.execute(create_graph % tree.current_port)
+    connection.execute(create_graph % tree.current_port)
+    # connection.execute("TRUNCATE graph%s" % tree.current_port)
 
     # connection.execute("DROP TABLE IF EXISTS %susers" % tree.current_port)
     # connection.execute(create_users % tree.current_port)
