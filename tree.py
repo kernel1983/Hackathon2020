@@ -96,10 +96,10 @@ class NodeHandler(tornado.websocket.WebSocketHandler):
         message = ["DISCARDED_BRANCHES", [[current_host, current_port, self.branch]], uuid.uuid4().hex]
         forward(message)
 
-        message = ["GROUP_ID", self.branch, uuid.uuid4().hex]
+        message = ["NODE_ID", self.branch, uuid.uuid4().hex]
         self.write_message(tornado.escape.json_encode(message))
 
-        message = ["NODE_PARENTS", node_parents]
+        message = ["NODE_PARENTS", node_parents, uuid.uuid4().hex]
         self.write_message(tornado.escape.json_encode(message))
 
     def on_close(self):
@@ -143,8 +143,7 @@ class NodeHandler(tornado.websocket.WebSocketHandler):
             nodeid = seq[1]
             if current_nodeid is not None and node_distance(nodeid, current_nodeid) > setting.NEIGHBOURHOODS_HOPS:
                 return
-            hosts = node_neighborhoods.get(nodeid, [])
-            node_neighborhoods[nodeid] = [list(i) for i in set([tuple(i) for i in hosts])]
+            node_neighborhoods[nodeid] = tuple(seq[2])
             # print(current_port, "NODE_NEIGHBOURHOODS", current_nodeid, nodeid, node_neighborhoods)
 
         elif seq[0] == "NEW_CHAIN_BLOCK":
@@ -218,7 +217,7 @@ class NodeConnector(object):
             self.conn.write_message(tornado.escape.json_encode(message))
 
             if current_nodeid is not None:
-                message = ["NODE_NEIGHBOURHOODS", current_nodeid, uuid.uuid4().hex]
+                message = ["NODE_NEIGHBOURHOODS", current_nodeid, [current_host, current_port], uuid.uuid4().hex]
                 self.conn.write_message(tornado.escape.json_encode(message))
 
         except:
@@ -265,20 +264,20 @@ class NodeConnector(object):
             # for node in NodeHandler.child_nodes.values():
             #     node.write_message(message)
 
-            m = ["NODE_NEIGHBOURHOODS", current_nodeid, uuid.uuid4().hex]
+            m = ["NODE_NEIGHBOURHOODS", current_nodeid, [current_host, current_port], uuid.uuid4().hex]
             forward(m)
 
-        elif seq[0] == "GROUP_ID":
+        elif seq[0] == "NODE_ID":
             current_nodeid = seq[1]
 
             if control_node:
                 control_node.write_message(tornado.escape.json_encode(["ADDRESS2", current_host, current_port, current_nodeid]))
 
-            print(current_port, "GROUP_ID", current_nodeid, seq[-1])
+            print(current_port, "NODE_ID", current_nodeid, seq[-1])
             # print(current_port, "NODE_PARENTS", node_parents[current_nodeid])
 
             if self.conn and not self.conn.stream.closed:
-                m = ["NODE_NEIGHBOURHOODS", current_nodeid, uuid.uuid4().hex]
+                m = ["NODE_NEIGHBOURHOODS", current_nodeid, [current_host, current_port], uuid.uuid4().hex]
                 self.conn.write_message(tornado.escape.json_encode(m))
             return
 
@@ -294,8 +293,7 @@ class NodeConnector(object):
             nodeid = seq[1]
             if current_nodeid is not None and node_distance(nodeid, current_nodeid) > setting.NEIGHBOURHOODS_HOPS:
                 return
-            hosts = node_neighborhoods.get(nodeid, [])
-            node_neighborhoods[nodeid] = [list(i) for i in set([tuple(i) for i in hosts])]
+            node_neighborhoods[nodeid] = tuple(seq[2])
             # print(current_port, "NODE_NEIGHBOURHOODS", current_nodeid, nodeid, node_neighborhoods)
 
         elif seq[0] == "NEW_CHAIN_BLOCK":
