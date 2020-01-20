@@ -133,6 +133,11 @@ class DashboardHandler(tornado.web.RequestHandler):
             host, port = tree.node_neighborhoods[nodeid]
             self.write("%s:%s %s<br>" %(nodeid, host, port))
 
+        self.write("<br>node_map:<br>")
+        for nodeid in tree.node_map:
+            host, port = tree.node_map[nodeid]
+            self.write("%s:%s %s<br>" %(nodeid, host, port))
+
         self.finish()
 
 def main():

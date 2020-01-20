@@ -34,6 +34,7 @@ available_branches = set()
 
 node_neighborhoods = dict()
 node_parents = dict()
+node_map = dict()
 
 processed_message_ids = set()
 
@@ -96,8 +97,11 @@ class NodeHandler(tornado.websocket.WebSocketHandler):
         message = ["DISCARDED_BRANCHES", [[current_host, current_port, self.branch]], uuid.uuid4().hex]
         forward(message)
 
-        message = ["NODE_ID", self.branch, uuid.uuid4().hex]
-        self.write_message(tornado.escape.json_encode(message))
+        # message = ["NODE_ID", self.branch, uuid.uuid4().hex]
+        # message = ["NODE_ID", self.branch, ip, port, pk, sig, uuid.uuid4().hex]
+        message = ["NODE_ID", self.branch, self.from_host, self.from_port, uuid.uuid4().hex]
+        # self.write_message(tornado.escape.json_encode(message))
+        forward(message)
 
         message = ["NODE_PARENTS", node_parents, uuid.uuid4().hex]
         self.write_message(tornado.escape.json_encode(message))
@@ -125,6 +129,7 @@ class NodeHandler(tornado.websocket.WebSocketHandler):
     def on_message(self, message):
         global current_nodeid
         global node_neighborhoods
+        global node_map
 
         seq = tornado.escape.json_decode(message)
         # print(current_port, "on message from child", seq)
@@ -138,6 +143,24 @@ class NodeHandler(tornado.websocket.WebSocketHandler):
             for i in seq[1]:
                 branch_host, branch_port, branch = i
                 available_branches.add(tuple([branch_host, branch_port, branch]))
+
+        elif seq[0] == "NODE_ID":
+            nodeid = seq[1]
+            host = seq[2]
+            port = seq[3]
+            node_map[nodeid] = (host, port)
+            print(current_port, "NODE_ID", nodeid, host, port, seq[-1])
+            # if current_host == host and current_port == port:
+            #     current_nodeid = nodeid
+
+            #     if control_node:
+            #         control_node.write_message(tornado.escape.json_encode(["ADDRESS2", current_host, current_port, current_nodeid]))
+
+            #     # print(current_port, "NODE_PARENTS", node_parents[current_nodeid])
+            #     if self.conn and not self.conn.stream.closed:
+            #         m = ["NODE_NEIGHBOURHOODS", current_nodeid, [current_host, current_port], uuid.uuid4().hex]
+            #         self.conn.write_message(tornado.escape.json_encode(m))
+            # return
 
         elif seq[0] == "NODE_NEIGHBOURHOODS":
             nodeid = seq[1]
@@ -232,6 +255,7 @@ class NodeConnector(object):
         global current_nodeid
         global node_parents
         global node_neighborhoods
+        global node_map
 
         if message is None:
             # print("reconnect2 ...")
@@ -268,18 +292,22 @@ class NodeConnector(object):
             forward(m)
 
         elif seq[0] == "NODE_ID":
-            current_nodeid = seq[1]
+            nodeid = seq[1]
+            host = seq[2]
+            port = seq[3]
+            node_map[nodeid] = (host, port)
+            print(current_port, "NODE_ID", nodeid, host, port, seq[-1])
+            if current_host == host and current_port == port:
+                current_nodeid = nodeid
 
-            if control_node:
-                control_node.write_message(tornado.escape.json_encode(["ADDRESS2", current_host, current_port, current_nodeid]))
+                if control_node:
+                    control_node.write_message(tornado.escape.json_encode(["ADDRESS2", current_host, current_port, current_nodeid]))
 
-            print(current_port, "NODE_ID", current_nodeid, seq[-1])
-            # print(current_port, "NODE_PARENTS", node_parents[current_nodeid])
-
-            if self.conn and not self.conn.stream.closed:
-                m = ["NODE_NEIGHBOURHOODS", current_nodeid, [current_host, current_port], uuid.uuid4().hex]
-                self.conn.write_message(tornado.escape.json_encode(m))
-            return
+                # print(current_port, "NODE_PARENTS", node_parents[current_nodeid])
+                if self.conn and not self.conn.stream.closed:
+                    m = ["NODE_NEIGHBOURHOODS", current_nodeid, [current_host, current_port], uuid.uuid4().hex]
+                    self.conn.write_message(tornado.escape.json_encode(m))
+            # return
 
         elif seq[0] == "NODE_PARENTS":
             node_parents.update(seq[1])
