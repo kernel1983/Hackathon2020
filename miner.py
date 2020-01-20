@@ -94,7 +94,24 @@ def mining():
                 print(tree.current_port, 'height', len(longest), longest[-1].timestamp, longest[0].timestamp, 'timecost', longest[-1].timestamp - longest[0].timestamp)
             # db.execute("UPDATE chain SET hash = %s, prev_hash = %s, nonce = %s, wallet_address = %s WHERE id = %s", block_hash, longest_hash, nonce, wallet_address, last.id)
             # database.connection.execute("INSERT INTO chain"+tree.current_port+" (hash, prev_hash, nonce, difficulty, identity, timestamp, data) VALUES (%s, %s, %s, %s, '')", block_hash, longest_hash, nonce, difficulty, str(tree.current_port))
-            data = {"nodes": {k:list(v) for k, v in tree.node_map.items()}}
+            nodes = {}
+            for i in longest:
+                data = tornado.escape.json_decode(i.data)
+                print(i.height, data["nodes"])
+                nodes.update(data.get("nodes", {}))
+                print(' ', nodes)
+            update_nodes = {}
+            for nodeid in tree.node_map:
+                if nodeid in nodes:
+                    if tuple(nodes[nodeid]) != tuple(tree.node_map[nodeid]):
+                        update_nodes[nodeid] = list(tree.node_map[nodeid])
+                else:
+                    update_nodes[nodeid] = list(tree.node_map[nodeid])
+            print(tree.node_map)
+            print(update_nodes)
+
+            # data = {"nodes": {k:list(v) for k, v in tree.node_map.items()}}
+            data = {"nodes": update_nodes}
 
             message = ["NEW_CHAIN_BLOCK", block_hash, longest_hash, len(longest)+1, nonce, new_difficulty, new_identity, new_timestamp, data, uuid.uuid4().hex]
             tree.forward(message)
