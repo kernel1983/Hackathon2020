@@ -35,6 +35,7 @@ available_branches = set()
 node_neighborhoods = dict()
 node_parents = dict()
 node_map = dict()
+parent_node_id_msg = None
 
 processed_message_ids = set()
 
@@ -256,6 +257,7 @@ class NodeConnector(object):
         global node_parents
         global node_neighborhoods
         global node_map
+        global parent_node_id_msg
 
         if message is None:
             # print("reconnect2 ...")
@@ -307,6 +309,8 @@ class NodeConnector(object):
                 if self.conn and not self.conn.stream.closed:
                     m = ["NODE_NEIGHBOURHOODS", current_nodeid, [current_host, current_port], uuid.uuid4().hex]
                     self.conn.write_message(tornado.escape.json_encode(m))
+
+                parent_node_id_msg = seq
             # return
 
         elif seq[0] == "NODE_PARENTS":
