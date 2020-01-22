@@ -88,9 +88,9 @@ def mining():
     nodes = {}
     for i in longest:
         data = tornado.escape.json_decode(i.data)
-        print(i.height, data["nodes"])
+        # print(i.height, data["nodes"])
         nodes.update(data.get("nodes", {}))
-        print(' ', nodes)
+        # print(' ', nodes)
 
     if tree.current_nodeid not in nodes and tree.parent_node_id_msg:
         tree.forward(tree.parent_node_id_msg[:-1]+[uuid.uuid4().hex])
@@ -98,12 +98,12 @@ def mining():
     update_nodes = {}
     for nodeid in tree.node_map:
         if nodeid in nodes:
-            if tuple(nodes[nodeid]) != tuple(tree.node_map[nodeid]):
-                update_nodes[nodeid] = list(tree.node_map[nodeid])
+            if nodes[nodeid] != tree.node_map[nodeid]:
+                update_nodes[nodeid] = tree.node_map[nodeid]
         else:
-            update_nodes[nodeid] = list(tree.node_map[nodeid])
-    print(tree.node_map)
-    print(update_nodes)
+            update_nodes[nodeid] = tree.node_map[nodeid]
+    # print(tree.node_map)
+    # print(update_nodes)
 
     # data = {"nodes": {k:list(v) for k, v in tree.node_map.items()}}
     data["nodes"] = update_nodes

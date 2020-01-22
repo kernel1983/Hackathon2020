@@ -100,7 +100,7 @@ class NodeHandler(tornado.websocket.WebSocketHandler):
 
         # message = ["NODE_ID", self.branch, uuid.uuid4().hex]
         # message = ["NODE_ID", self.branch, ip, port, pk, sig, uuid.uuid4().hex]
-        message = ["NODE_ID", self.branch, self.from_host, self.from_port, uuid.uuid4().hex]
+        message = ["NODE_ID", self.branch, [self.from_host, self.from_port], uuid.uuid4().hex]
         # self.write_message(tornado.escape.json_encode(message))
         forward(message)
 
@@ -126,6 +126,9 @@ class NodeHandler(tornado.websocket.WebSocketHandler):
         message = ["DISCARDED_BRANCHES", [[self.from_host, self.from_port, self.branch+"0"], [self.from_host, self.from_port, self.branch+"1"]], uuid.uuid4().hex]
         forward(message)
 
+        message = ["NODE_ID", self.branch, None, uuid.uuid4().hex]
+        forward(message)
+
     @tornado.gen.coroutine
     def on_message(self, message):
         global current_nodeid
@@ -147,21 +150,9 @@ class NodeHandler(tornado.websocket.WebSocketHandler):
 
         elif seq[0] == "NODE_ID":
             nodeid = seq[1]
-            host = seq[2]
-            port = seq[3]
-            node_map[nodeid] = (host, port)
-            print(current_port, "NODE_ID", nodeid, host, port, seq[-1])
-            # if current_host == host and current_port == port:
-            #     current_nodeid = nodeid
-
-            #     if control_node:
-            #         control_node.write_message(tornado.escape.json_encode(["ADDRESS2", current_host, current_port, current_nodeid]))
-
-            #     # print(current_port, "NODE_PARENTS", node_parents[current_nodeid])
-            #     if self.conn and not self.conn.stream.closed:
-            #         m = ["NODE_NEIGHBOURHOODS", current_nodeid, [current_host, current_port], uuid.uuid4().hex]
-            #         self.conn.write_message(tornado.escape.json_encode(m))
-            # return
+            host_and_port = seq[2]
+            node_map[nodeid] = host_and_port
+            print(current_port, "NODE_ID", nodeid, host_and_port, seq[-1])
 
         elif seq[0] == "NODE_NEIGHBOURHOODS":
             nodeid = seq[1]
@@ -295,11 +286,10 @@ class NodeConnector(object):
 
         elif seq[0] == "NODE_ID":
             nodeid = seq[1]
-            host = seq[2]
-            port = seq[3]
-            node_map[nodeid] = (host, port)
-            print(current_port, "NODE_ID", nodeid, host, port, seq[-1])
-            if current_host == host and current_port == port:
+            host_and_port = seq[2]
+            node_map[nodeid] = host_and_port
+            print(current_port, "NODE_ID", nodeid, host_and_port, seq[-1])
+            if [current_host, current_port] == host_and_port:
                 current_nodeid = nodeid
 
                 if control_node:
