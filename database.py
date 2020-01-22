@@ -22,7 +22,7 @@ create_chain = """CREATE TABLE IF NOT EXISTS `chain%s` (
 
 create_graph = """CREATE TABLE IF NOT EXISTS `graph%s` (
     `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
-    `txid` varchar(128) NOT NULL,
+    `msgid` varchar(128) NOT NULL,
     `timestamp` int(11) unsigned DEFAULT NULL,
     `hash` varchar(128) NOT NULL DEFAULT '',
     `from_block` varchar(128) NOT NULL DEFAULT '',
@@ -34,7 +34,7 @@ create_graph = """CREATE TABLE IF NOT EXISTS `graph%s` (
     `insert_timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     UNIQUE KEY `hash` (`hash`),
-    UNIQUE KEY `txid` (`txid`),
+    UNIQUE KEY `msgid` (`msgid`),
     KEY `from_block` (`from_block`,`sender`,`nonce`),
     KEY `to_block` (`to_block`,`receiver`,`nonce`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1000 DEFAULT CHARSET=utf8;
@@ -70,11 +70,11 @@ def main():
     if not tree.current_port:
         return
     # if not connection.get("SELECT table_name FROM information_schema.tables WHERE table_schema = 'nodes' AND table_name = %s", tree.current_port+"chain"):
-    # connection.execute("DROP TABLE IF EXISTS chain%s" % tree.current_port)
+    connection.execute("DROP TABLE IF EXISTS chain%s" % tree.current_port)
     connection.execute(create_chain % tree.current_port)
     # connection.execute("TRUNCATE chain%s" % tree.current_port)
 
-    # connection.execute("DROP TABLE IF EXISTS graph%s" % tree.current_port)
+    connection.execute("DROP TABLE IF EXISTS graph%s" % tree.current_port)
     connection.execute(create_graph % tree.current_port)
     # connection.execute("TRUNCATE graph%s" % tree.current_port)
 

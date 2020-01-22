@@ -121,7 +121,7 @@ def new_tx_block(seq):
 
     try:
         if related_block:
-            sql = "INSERT INTO graph"+tree.current_port+" (txid, timestamp, hash, from_block, to_block, sender, receiver, nonce, data) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
+            sql = "INSERT INTO graph"+tree.current_port+" (msgid, timestamp, hash, from_block, to_block, sender, receiver, nonce, data) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
             database.connection.execute(sql, txid, int(timestamp), block_hash, from_block, to_block, sender, receiver, nonce, tornado.escape.json_encode(transaction))
 
         if sender in locked_accounts:
@@ -166,7 +166,7 @@ def new_msg_block(seq):
 
     try:
         if related_block:
-            sql = "INSERT INTO graph"+tree.current_port+" (txid, timestamp, hash, from_block, to_block, sender, receiver, nonce, data) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
+            sql = "INSERT INTO graph"+tree.current_port+" (msgid, timestamp, hash, from_block, to_block, sender, receiver, nonce, data) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
             database.connection.execute(sql, msgid, int(timestamp), block_hash, from_block, to_block, sender, receiver, nonce, tornado.escape.json_encode(block))
 
         if sender in locked_accounts:
@@ -248,7 +248,7 @@ class LeaderHandler(tornado.websocket.WebSocketHandler):
             view_no = seq[2]
             msgid = seq[3]
             block_hash = seq[4]
-            # verify blockhash with own blockhash for txid
+            # verify blockhash with own blockhash for msgid
             forward(["PBFT_C", view, view_no, msgid, current_view])
             return
 
@@ -351,7 +351,7 @@ class LeaderConnector(object):
             view_no = seq[2]
             msgid = seq[3]
             block_hash = seq[4]
-            # verify blockhash with own blockhash for txid
+            # verify blockhash with own blockhash for msgid
             forward(["PBFT_C", view, view_no, msgid, current_view])
             return
 
@@ -402,7 +402,7 @@ def mining():
         if "transaction" in block:
             msgid = block["transaction"]["txid"]
             if current_view != system_view:
-                tx = database.connection.get("SELECT * FROM graph"+tree.current_port+" WHERE txid = %s LIMIT 1", msgid)
+                tx = database.connection.get("SELECT * FROM graph"+tree.current_port+" WHERE msgid = %s LIMIT 1", msgid)
                 if not tx:
                     messages.append(seq)
                 return
@@ -415,7 +415,7 @@ def mining():
         else:
             msgid = block["message"]["msgid"]
             if current_view != system_view:
-                msg = database.connection.get("SELECT * FROM graph"+tree.current_port+" WHERE txid = %s LIMIT 1", msgid)
+                msg = database.connection.get("SELECT * FROM graph"+tree.current_port+" WHERE msgid = %s LIMIT 1", msgid)
                 if not msg:
                     messages.append(seq)
                 return
