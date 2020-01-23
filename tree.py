@@ -55,6 +55,11 @@ def forward(seq):
     if NodeConnector.parent_node:
         NodeConnector.parent_node.conn.write_message(message)
 
+def nodeid2no(nodeid):
+    if not nodeid:
+        return 1
+    return 2**len(str(nodeid)) + int(nodeid, 2)
+
 def node_distance(a, b):
     if len(a) > len(b):
         a, b = b, a

@@ -59,9 +59,11 @@ def longest_chain(root_hash = '0'*64):
 
 
 nonce = 0
+nonce_interval = 0
 @tornado.gen.coroutine
 def mining():
     global nonce
+    global nonce_interval
 
     longest = longest_chain()
     update_leader(longest)
@@ -91,6 +93,9 @@ def mining():
         # print(i.height, data["nodes"])
         nodes.update(data.get("nodes", {}))
         # print(' ', nodes)
+    nonce_interval = len(nodes)
+    if nonce == 0:
+        nonce = tree.nodeid2no(tree.current_nodeid)
 
     if tree.current_nodeid not in nodes and tree.parent_node_id_msg:
         tree.forward(tree.parent_node_id_msg[:-1]+[uuid.uuid4().hex])
@@ -115,7 +120,7 @@ def mining():
         block_hash = hashlib.sha256((longest_hash + data_json + new_timestamp + str(difficulty) + str(nonce)).encode('utf8')).hexdigest()
         if int(block_hash, 16) < int("1" * (256-difficulty), 2):
             if longest:
-                print(tree.current_port, 'height', len(longest), longest[-1].timestamp, longest[0].timestamp, 'timecost', longest[-1].timestamp - longest[0].timestamp)
+                print(tree.current_port, 'height', len(longest), 'nonce_interval', nonce_interval, 'nonce_init', tree.current_nodeid, tree.nodeid2no(tree.current_nodeid), 'timecost', longest[-1].timestamp - longest[0].timestamp)
             # db.execute("UPDATE chain SET hash = %s, prev_hash = %s, nonce = %s, wallet_address = %s WHERE id = %s", block_hash, longest_hash, nonce, wallet_address, last.id)
             # database.connection.execute("INSERT INTO chain"+tree.current_port+" (hash, prev_hash, nonce, difficulty, identity, timestamp, data) VALUES (%s, %s, %s, %s, '')", block_hash, longest_hash, nonce, difficulty, str(tree.current_port))
 
@@ -125,7 +130,7 @@ def mining():
             nonce = 0
             break
 
-        nonce += 1
+        nonce += nonce_interval
 
 def new_block(seq):
     msg_header, block_hash, longest_hash, height, nonce, difficulty, identity, timestamp, data, msg_id = seq

@@ -109,34 +109,34 @@ class DashboardHandler(tornado.web.RequestHandler):
         self.write("<br>current_nodeid: %s <br>" % tree.current_nodeid)
         self.write("<br>available_branches:<br>")
         for branch in branches:
-            self.write("%s %s %s <br>" %branch)
+            self.write("%s:%s %s <br>" % branch)
 
         self.write("<br>parent_node:<br>")
         if tree.NodeConnector.parent_node:
-            self.write("%s %s<br>" %(tree.NodeConnector.parent_node.host, tree.NodeConnector.parent_node.port))
+            self.write("%s:%s<br>" %(tree.NodeConnector.parent_node.host, tree.NodeConnector.parent_node.port))
 
         self.write("<br>LeaderHandler:<br>")
         for node in leader.LeaderHandler.leader_nodes:
-            self.write("%s %s<br>" %(node.from_host, node.from_port))
+            self.write("%s:%s<br>" %(node.from_host, node.from_port))
 
         self.write("<br>LeaderConnector:<br>")
         for node in leader.LeaderConnector.leader_nodes:
-            self.write("%s %s<br>" %(node.host, node.port))
+            self.write("%s:%s<br>" %(node.host, node.port))
 
         self.write("<br>node_parents:<br>")
         for nodeid in tree.node_parents:
             host, port = tree.node_parents[nodeid][0]
-            self.write("%s:%s %s<br>" %(nodeid, host, port))
+            self.write("%s %s:%s<br>" %(nodeid, host, port))
 
         self.write("<br>node_neighborhoods:<br>")
         for nodeid in tree.node_neighborhoods:
             host, port = tree.node_neighborhoods[nodeid]
-            self.write("%s:%s %s<br>" %(nodeid, host, port))
+            self.write("%s %s:%s<br>" %(nodeid, host, port))
 
         self.write("<br>node_map:<br>")
         for nodeid in tree.node_map:
-            host, port = tree.node_map[nodeid]
-            self.write("%s:%s %s<br>" %(nodeid, host, port))
+            host, port = tree.node_map[nodeid] or (None, None)
+            self.write("%s %s:%s<br>" %(nodeid, host, port))
 
         self.finish()
 
