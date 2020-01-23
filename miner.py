@@ -67,6 +67,34 @@ def mining():
 
     longest = longest_chain()
     update_leader(longest)
+
+    nodes = {}
+    for i in longest:
+        data = tornado.escape.json_decode(i.data)
+        print(i.height, data["nodes"])
+        nodes.update(data.get("nodes", {}))
+        # print(' ', nodes)
+
+    nonce_interval = len(nodes)
+    if nonce == 0:
+        nonce = tree.nodeid2no(tree.current_nodeid)
+
+    if tree.current_nodeid not in nodes and tree.parent_node_id_msg:
+        tree.forward(tree.parent_node_id_msg[:-1]+[uuid.uuid4().hex])
+
+    update_nodes = {}
+    for nodeid in tree.node_map:
+        if nodeid in nodes:
+            if nodes[nodeid] != tree.node_map[nodeid]:
+                update_nodes[nodeid] = tree.node_map[nodeid]
+        else:
+            update_nodes[nodeid] = tree.node_map[nodeid]
+
+    nodes.update(tree.node_map)
+    tree.node_map = nodes
+    # print(tree.node_map)
+    # print(update_nodes)
+
     # print(longest)
     if longest:
         longest_hash = longest[-1].hash
@@ -86,29 +114,6 @@ def mining():
 
     else:
         longest_hash, difficulty, new_difficulty, data, identity = "0"*64, 1, 1, {}, ""
-
-    nodes = {}
-    for i in longest:
-        data = tornado.escape.json_decode(i.data)
-        # print(i.height, data["nodes"])
-        nodes.update(data.get("nodes", {}))
-        # print(' ', nodes)
-    nonce_interval = len(nodes)
-    if nonce == 0:
-        nonce = tree.nodeid2no(tree.current_nodeid)
-
-    if tree.current_nodeid not in nodes and tree.parent_node_id_msg:
-        tree.forward(tree.parent_node_id_msg[:-1]+[uuid.uuid4().hex])
-
-    update_nodes = {}
-    for nodeid in tree.node_map:
-        if nodeid in nodes:
-            if nodes[nodeid] != tree.node_map[nodeid]:
-                update_nodes[nodeid] = tree.node_map[nodeid]
-        else:
-            update_nodes[nodeid] = tree.node_map[nodeid]
-    # print(tree.node_map)
-    # print(update_nodes)
 
     # data = {"nodes": {k:list(v) for k, v in tree.node_map.items()}}
     data["nodes"] = update_nodes
