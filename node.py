@@ -5,6 +5,7 @@ import socket
 import subprocess
 import argparse
 import uuid
+import base64
 
 import tornado.web
 # import tornado.websocket
@@ -107,21 +108,12 @@ class DashboardHandler(tornado.web.RequestHandler):
 
         parents = []
         self.write("<br>current_nodeid: %s <br>" % tree.current_nodeid)
-        self.write("<br>available_branches:<br>")
-        for branch in branches:
-            self.write("%s:%s %s <br>" % branch)
 
+        self.write("<br>sk: %s <br>" % base64.b16encode(tree.node_sk.get_verifying_key().to_string()))
+        # sender = base64.b64encode(sender_vk.to_string()).decode()
         self.write("<br>parent_node:<br>")
         if tree.NodeConnector.parent_node:
             self.write("%s:%s<br>" %(tree.NodeConnector.parent_node.host, tree.NodeConnector.parent_node.port))
-
-        self.write("<br>LeaderHandler:<br>")
-        for node in leader.LeaderHandler.leader_nodes:
-            self.write("%s:%s<br>" %(node.from_host, node.from_port))
-
-        self.write("<br>LeaderConnector:<br>")
-        for node in leader.LeaderConnector.leader_nodes:
-            self.write("%s:%s<br>" %(node.host, node.port))
 
         self.write("<br>node_parents:<br>")
         for nodeid in tree.node_parents:
@@ -137,6 +129,19 @@ class DashboardHandler(tornado.web.RequestHandler):
         for nodeid in tree.node_map:
             host, port = tree.node_map[nodeid] or (None, None)
             self.write("%s %s:%s<br>" %(nodeid, host, port))
+
+        self.write("<br>available_branches:<br>")
+        for branch in branches:
+            self.write("%s:%s %s <br>" % branch)
+
+        self.write("<br>LeaderHandler:<br>")
+        for node in leader.LeaderHandler.leader_nodes:
+            self.write("%s:%s<br>" %(node.from_host, node.from_port))
+
+        self.write("<br>LeaderConnector:<br>")
+        for node in leader.LeaderConnector.leader_nodes:
+            self.write("%s:%s<br>" %(node.host, node.port))
+
 
         self.finish()
 

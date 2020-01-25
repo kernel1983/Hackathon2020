@@ -6,6 +6,7 @@ import subprocess
 import argparse
 import uuid
 import functools
+import base64
 
 import tornado.web
 import tornado.websocket
@@ -21,6 +22,7 @@ import fs
 import database
 import msg
 
+from ecdsa import SigningKey, NIST256p
 
 control_port = 0
 
@@ -28,7 +30,7 @@ current_host = None
 current_port = None
 current_branch = None
 current_nodeid = None
-public_key = None
+node_sk = None
 
 available_branches = set()
 
@@ -70,6 +72,15 @@ def node_distance(a, b):
         i += 1
     return len(a)+len(b)-i*2
 
+def sign_msg(message):
+    global node_sk
+    if not node_sk:
+        raise
+    message_json = tornado.escape.json_encode(message)
+    signature = node_sk.sign(message_json.encode('utf8'))
+    message.append(base64.b64encode(signature).decode())
+    print(current_port, "signature", message)
+
 # connect point from child node
 class NodeHandler(tornado.websocket.WebSocketHandler):
     child_nodes = dict()
@@ -103,10 +114,9 @@ class NodeHandler(tornado.websocket.WebSocketHandler):
         message = ["DISCARDED_BRANCHES", [[current_host, current_port, self.branch]], uuid.uuid4().hex]
         forward(message)
 
-        # message = ["NODE_ID", self.branch, uuid.uuid4().hex]
-        # message = ["NODE_ID", self.branch, ip, port, pk, sig, uuid.uuid4().hex]
-        message = ["NODE_ID", self.branch, [self.from_host, self.from_port], uuid.uuid4().hex]
-        # self.write_message(tornado.escape.json_encode(message))
+        # message = ["NODE_ID", self.branch, [ip, port], timestamp, current_nodeid, sig]
+        message = ["NODE_ID", self.branch, [self.from_host, self.from_port], current_nodeid, time.time()]
+        sign_msg(message)
         forward(message)
 
         message = ["NODE_PARENTS", node_parents, uuid.uuid4().hex]
@@ -131,7 +141,8 @@ class NodeHandler(tornado.websocket.WebSocketHandler):
         message = ["DISCARDED_BRANCHES", [[self.from_host, self.from_port, self.branch+"0"], [self.from_host, self.from_port, self.branch+"1"]], uuid.uuid4().hex]
         forward(message)
 
-        message = ["NODE_ID", self.branch, None, uuid.uuid4().hex]
+        message = ["NODE_ID", self.branch, None, current_nodeid, time.time()]
+        sign_msg(message)
         forward(message)
 
     @tornado.gen.coroutine
@@ -286,8 +297,8 @@ class NodeConnector(object):
             # for node in NodeHandler.child_nodes.values():
             #     node.write_message(message)
 
-            m = ["NODE_NEIGHBOURHOODS", current_nodeid, [current_host, current_port], uuid.uuid4().hex]
-            forward(m)
+            message = ["NODE_NEIGHBOURHOODS", current_nodeid, [current_host, current_port], uuid.uuid4().hex]
+            forward(message)
 
         elif seq[0] == "NODE_ID":
             nodeid = seq[1]
@@ -302,8 +313,8 @@ class NodeConnector(object):
 
                 # print(current_port, "NODE_PARENTS", node_parents[current_nodeid])
                 if self.conn and not self.conn.stream.closed:
-                    m = ["NODE_NEIGHBOURHOODS", current_nodeid, [current_host, current_port], uuid.uuid4().hex]
-                    self.conn.write_message(tornado.escape.json_encode(m))
+                    message = ["NODE_NEIGHBOURHOODS", current_nodeid, [current_host, current_port], uuid.uuid4().hex]
+                    self.conn.write_message(tornado.escape.json_encode(message))
 
                 parent_node_id_msg = seq
             # return
@@ -464,21 +475,23 @@ def main():
     global current_port
     global control_host
     global control_port
-    global public_key
+    global node_sk
 
     parser = argparse.ArgumentParser(description="node description")
     parser.add_argument('--host', default="127.0.0.1")
     parser.add_argument('--port')
     parser.add_argument('--control_host')
     parser.add_argument('--control_port', default=8000)
-    parser.add_argument('--public_key', default='')
 
     args = parser.parse_args()
     current_host = args.host
     current_port = args.port
     control_host = args.control_host
     control_port = args.control_port
-    public_key = args.public_key
+
+    # parser.add_argument('--pirvate_key', default=)
+    # pirvate_key_file = args.pirvate_key
+    node_sk = SigningKey.from_pem(open('data/pk/pk'+current_port).read())
 
 if __name__ == '__main__':
     print("run python node.py pls")

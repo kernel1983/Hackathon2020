@@ -449,9 +449,8 @@ def mining():
         current_view_no += 1
         k = "%s_%s"%(int(current_view), int(current_view_no))
         view_transactions[k] = block
-        msg = ["PBFT_O", current_view, current_view_no, block]
-        forward(msg)
-
+        message = ["PBFT_O", current_view, current_view_no, block]
+        forward(message)
 
 
 current_leaders = set()
