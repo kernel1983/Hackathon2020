@@ -85,13 +85,13 @@ class NewMsgHandler(tornado.web.RequestHandler):
         sender_filename = "pk0"
         sender_sk = SigningKey.from_pem(open("data/pk/"+sender_filename).read())
         sender_vk = sender_sk.get_verifying_key()
-        sender = base64.b64encode(sender_vk.to_string()).decode()
+        sender = base64.b64encode(sender_vk.to_string()).decode("utf8")
 
         j = random.randint(1,9)
         receiver_filename = "pk%s" % j
         receiver_sk = SigningKey.from_pem(open("data/pk/"+receiver_filename).read())
         receiver_vk = receiver_sk.get_verifying_key()
-        receiver = base64.b64encode(receiver_vk.to_string()).decode()
+        receiver = base64.b64encode(receiver_vk.to_string()).decode("utf8")
 
         msgid = uuid.uuid4().hex
         # amount = random.randint(1, 10)
@@ -107,7 +107,7 @@ class NewMsgHandler(tornado.web.RequestHandler):
         signature = sender_sk.sign(str(timestamp).encode("utf8"))
         data = {
             "message": message,
-            "signature": base64.b64encode(signature).decode()
+            "signature": base64.b64encode(signature).decode("utf8")
         }
 
         print("gen msg", msgid)
@@ -145,12 +145,12 @@ class NewTxHandler(tornado.web.RequestHandler):
             i = random.choice(list(user_nos))
             sender_sk = self.users[i]
             sender_vk = sender_sk.get_verifying_key()
-            sender = base64.b64encode(sender_vk.to_string()).decode()
+            sender = base64.b64encode(sender_vk.to_string()).decode("utf8")
 
             j = random.choice(list(user_nos - set([i])))
             receiver_sk = self.users[j]
             receiver_vk = receiver_sk.get_verifying_key()
-            receiver = base64.b64encode(receiver_vk.to_string()).decode()
+            receiver = base64.b64encode(receiver_vk.to_string()).decode("utf8")
 
             amount = random.randint(1, 10)
             txid = uuid.uuid4().hex
@@ -165,7 +165,7 @@ class NewTxHandler(tornado.web.RequestHandler):
             signature = sender_sk.sign(str(timestamp).encode("utf8"))
             data = {
                 "transaction": transaction,
-                "signature": base64.b64encode(signature).decode()
+                "signature": base64.b64encode(signature).decode("utf8")
             }
 
             print("gen tx", n, txid)

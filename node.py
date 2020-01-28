@@ -109,8 +109,8 @@ class DashboardHandler(tornado.web.RequestHandler):
         parents = []
         self.write("<br>current_nodeid: %s <br>" % tree.current_nodeid)
 
-        self.write("<br>sk: %s <br>" % base64.b16encode(tree.node_sk.get_verifying_key().to_string()))
-        # sender = base64.b64encode(sender_vk.to_string()).decode()
+        self.write("<br>pk: %s <br>" % base64.b16encode(tree.node_sk.get_verifying_key().to_string()).decode("utf8"))
+        # sender = base64.b64encode(sender_vk.to_string()).decode("utf8")
         self.write("<br>parent_node:<br>")
         if tree.NodeConnector.parent_node:
             self.write("%s:%s<br>" %(tree.NodeConnector.parent_node.host, tree.NodeConnector.parent_node.port))
@@ -127,8 +127,8 @@ class DashboardHandler(tornado.web.RequestHandler):
 
         self.write("<br>node_map:<br>")
         for nodeid in tree.node_map:
-            host, port = tree.node_map[nodeid] or (None, None)
-            self.write("%s %s:%s<br>" %(nodeid, host, port))
+            pk = tree.node_map[nodeid]
+            self.write("%s %s<br>" %(nodeid, pk))
 
         self.write("<br>available_branches:<br>")
         for branch in branches:

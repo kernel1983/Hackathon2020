@@ -22,7 +22,7 @@ import fs
 import database
 import msg
 
-from ecdsa import SigningKey, NIST256p
+from ecdsa import SigningKey, VerifyingKey, NIST256p
 
 control_port = 0
 
@@ -77,8 +77,8 @@ def sign_msg(message):
     if not node_sk:
         raise
     message_json = tornado.escape.json_encode(message)
-    signature = node_sk.sign(message_json.encode('utf8'))
-    message.append(base64.b64encode(signature).decode())
+    signature = node_sk.sign(message_json.encode("utf8"))
+    message.append(base64.b16encode(signature).decode("utf8"))
     print(current_port, "signature", message)
 
 # connect point from child node
@@ -94,6 +94,13 @@ class NodeHandler(tornado.websocket.WebSocketHandler):
         self.branch = self.get_argument("branch")
         self.from_host = self.get_argument("host")
         self.from_port = self.get_argument("port")
+        self.pk = base64.b16decode(self.get_argument("pk"))
+        # print(self.pk, len(self.pk))
+        node_pk = VerifyingKey.from_string(self.pk, curve=NIST256p)
+        self.sig = base64.b16decode(self.get_argument("sig"))
+        # print(self.sig, len(self.sig))
+        # print(b"%s%s%s%s" % (self.branch.encode("utf8"), self.from_host.encode("utf8"), self.from_port.encode("utf8"), self.pk))
+        node_pk.verify(self.sig, b"%s%s%s%s" % (self.branch.encode("utf8"), self.from_host.encode("utf8"), self.from_port.encode("utf8"), self.pk))
         self.remove_node = True
         if self.branch in NodeHandler.child_nodes:
             print(current_port, "force disconnect")
@@ -115,7 +122,8 @@ class NodeHandler(tornado.websocket.WebSocketHandler):
         forward(message)
 
         # message = ["NODE_ID", self.branch, [ip, port], timestamp, current_nodeid, sig]
-        message = ["NODE_ID", self.branch, [self.from_host, self.from_port], current_nodeid, time.time()]
+        timestamp = time.time()
+        message = ["NODE_ID", self.branch, base64.b16encode(node_sk.get_verifying_key().to_string()).decode("utf8"), current_nodeid, timestamp]
         sign_msg(message)
         forward(message)
 
@@ -166,9 +174,10 @@ class NodeHandler(tornado.websocket.WebSocketHandler):
 
         elif seq[0] == "NODE_ID":
             nodeid = seq[1]
-            host_and_port = seq[2]
-            node_map[nodeid] = host_and_port
-            print(current_port, "NODE_ID", nodeid, host_and_port, seq[-1])
+            # pk = seq[2]
+            pk = seq[2]
+            node_map[nodeid] = pk
+            print(current_port, "NODE_ID", nodeid, pk, seq[-1])
 
         elif seq[0] == "NODE_NEIGHBOURHOODS":
             nodeid = seq[1]
@@ -215,10 +224,16 @@ class NodeConnector(object):
     parent_node = None
 
     def __init__(self, to_host, to_port, branch):
+        global node_sk
         self.host = to_host
         self.port = to_port
         self.branch = branch
-        self.ws_uri = "ws://%s:%s/node?branch=%s&host=%s&port=%s" % (self.host, self.port, self.branch, current_host, current_port)
+        self.pk = node_sk.get_verifying_key().to_string()
+        # print(self.pk.decode("utf8"))
+        # print(b"%s%s%s%s" % (self.branch.encode("utf8"), current_host.encode("utf8"), current_port.encode("utf8"), self.pk))
+        sig = node_sk.sign(b"%s%s%s%s" % (self.branch.encode("utf8"), current_host.encode("utf8"), current_port.encode("utf8"), self.pk))
+        # print(sig)
+        self.ws_uri = "ws://%s:%s/node?branch=%s&host=%s&port=%s&pk=%s&sig=%s" % (self.host, self.port, self.branch, current_host, current_port, base64.b16encode(self.pk).decode("utf8"), base64.b16encode(sig).decode("utf8"))
         self.conn = None
         self.connect()
 
@@ -274,7 +289,9 @@ class NodeConnector(object):
             branches = list(available_branches)
             current_branch = tuple(branches[0])
             branch_host, branch_port, branch = current_branch
-            self.ws_uri = "ws://%s:%s/node?branch=%s&host=%s&port=%s" % (branch_host, branch_port, branch, current_host, current_port)
+            sig = node_sk.sign(b"%s%s%s%s" % (branch.encode("utf8"), current_host.encode("utf8"), current_port.encode("utf8"), self.pk))
+            # print(sig)
+            self.ws_uri = "ws://%s:%s/node?branch=%s&host=%s&port=%s&pk=%s&sig=%s" % (branch_host, branch_port, branch, current_host, current_port, base64.b16encode(self.pk).decode("utf8"), base64.b16encode(sig).decode("utf8"))
             tornado.ioloop.IOLoop.instance().call_later(1.0, self.connect)
             return
 
@@ -302,10 +319,10 @@ class NodeConnector(object):
 
         elif seq[0] == "NODE_ID":
             nodeid = seq[1]
-            host_and_port = seq[2]
-            node_map[nodeid] = host_and_port
-            print(current_port, "NODE_ID", nodeid, host_and_port, seq[-1])
-            if [current_host, current_port] == host_and_port:
+            pk = seq[2]
+            node_map[nodeid] = pk
+            print(current_port, "NODE_ID", nodeid, pk, seq[-1])
+            if node_sk.get_verifying_key().to_string() == pk:
                 current_nodeid = nodeid
 
                 if control_node:

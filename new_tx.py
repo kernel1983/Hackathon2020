@@ -60,13 +60,13 @@ def main():
         # i = random.choice(list(user_nos))
         sender_sk = users[(n*2)%USER_NO]
         sender_vk = sender_sk.get_verifying_key()
-        sender = base64.b64encode(sender_vk.to_string()).decode()
+        sender = base64.b64encode(sender_vk.to_string()).decode("utf8")
         # sender = str(n*2)
 
         # j = random.choice(list(user_nos - set([i])))
         receiver_sk = users[(n*2+1)%USER_NO]
         receiver_vk = receiver_sk.get_verifying_key()
-        receiver = base64.b64encode(receiver_vk.to_string()).decode()
+        receiver = base64.b64encode(receiver_vk.to_string()).decode("utf8")
         # receiver = str(n*2+1)
 
         amount = random.randint(1, 20)
@@ -84,7 +84,7 @@ def main():
         signature = str(n).encode('utf8')
         data = {
             "transaction": transaction,
-            "signature": base64.b64encode(signature).decode()
+            "signature": base64.b64encode(signature).decode("utf8")
         }
 
         # assert sender_vk.verify(signature, str(timestamp).encode("utf8"))

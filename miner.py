@@ -4,6 +4,7 @@ import time
 import uuid
 import hashlib
 import copy
+import base64
 
 import tornado.web
 import tornado.websocket
