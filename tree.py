@@ -174,10 +174,11 @@ class NodeHandler(tornado.websocket.WebSocketHandler):
 
         elif seq[0] == "NODE_ID":
             nodeid = seq[1]
-            # pk = seq[2]
-            pk = seq[2]
-            node_map[nodeid] = pk
-            print(current_port, "NODE_ID", nodeid, pk, seq[-1])
+            parent_pk = seq[2]
+            parent_nodeid = seq[3]
+            timestamp = seq[4]
+            node_map[parent_nodeid] = parent_pk
+            print(current_port, "NODE_ID", nodeid, parent_nodeid, parent_pk, seq[-1])
 
         elif seq[0] == "NODE_NEIGHBOURHOODS":
             nodeid = seq[1]
@@ -319,10 +320,12 @@ class NodeConnector(object):
 
         elif seq[0] == "NODE_ID":
             nodeid = seq[1]
-            pk = seq[2]
-            node_map[nodeid] = pk
-            print(current_port, "NODE_ID", nodeid, pk, seq[-1])
-            if node_sk.get_verifying_key().to_string() == pk:
+            parent_pk = seq[2]
+            parent_nodeid = seq[3]
+            timestamp = seq[4]
+            node_map[parent_nodeid] = parent_pk
+            print(current_port, "NODE_ID", nodeid, parent_nodeid, parent_pk, seq[-1])
+            if self.branch == nodeid:
                 current_nodeid = nodeid
 
                 if control_node:
