@@ -82,7 +82,8 @@ def mining():
     print(tree.current_port, 'nonce', nonce, 'nonce_interval', nonce_interval)
 
     if tree.current_nodeid not in nodes and tree.parent_node_id_msg:
-        tree.forward(tree.parent_node_id_msg[:-1]+[uuid.uuid4().hex])
+        tree.forward(tree.parent_node_id_msg)
+        print(tree.current_port, 'parent_node_id_msg', tree.parent_node_id_msg)
 
     update_nodes = {}
     for nodeid in tree.node_map:

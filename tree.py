@@ -123,9 +123,10 @@ class NodeHandler(tornado.websocket.WebSocketHandler):
 
         # message = ["NODE_ID", self.branch, [ip, port], timestamp, current_nodeid, sig]
         timestamp = time.time()
-        message = ["NODE_ID", self.branch, base64.b16encode(node_sk.get_verifying_key().to_string()).decode("utf8"), current_nodeid, timestamp]
+        message = ["NODE_ID", base64.b16encode(self.pk).decode("utf8"), self.branch,
+                    base64.b16encode(node_sk.get_verifying_key().to_string()).decode("utf8"), current_nodeid, timestamp]
         sign_msg(message)
-        forward(message)
+        self.write_message(tornado.escape.json_encode(message))
 
         message = ["NODE_PARENTS", node_parents, uuid.uuid4().hex]
         self.write_message(tornado.escape.json_encode(message))
@@ -149,9 +150,9 @@ class NodeHandler(tornado.websocket.WebSocketHandler):
         message = ["DISCARDED_BRANCHES", [[self.from_host, self.from_port, self.branch+"0"], [self.from_host, self.from_port, self.branch+"1"]], uuid.uuid4().hex]
         forward(message)
 
-        message = ["NODE_ID", self.branch, None, current_nodeid, time.time()]
+        message = ["NODE_ID", None, self.branch, None, current_nodeid, time.time()]
         sign_msg(message)
-        forward(message)
+        self.write_message(tornado.escape.json_encode(message))
 
     @tornado.gen.coroutine
     def on_message(self, message):
@@ -173,12 +174,14 @@ class NodeHandler(tornado.websocket.WebSocketHandler):
                 available_branches.add(tuple([branch_host, branch_port, branch]))
 
         elif seq[0] == "NODE_ID":
-            nodeid = seq[1]
-            parent_pk = seq[2]
-            parent_nodeid = seq[3]
-            timestamp = seq[4]
+            pk = seq[1]
+            nodeid = seq[2]
+            parent_pk = seq[3]
+            parent_nodeid = seq[4]
+            timestamp = seq[5]
             node_map[parent_nodeid] = parent_pk
-            print(current_port, "NODE_ID", nodeid, parent_nodeid, parent_pk, seq[-1])
+            node_map[nodeid] = pk
+            print(current_port, "NODE_ID", nodeid, pk, parent_nodeid, parent_pk, seq[-1])
 
         elif seq[0] == "NODE_NEIGHBOURHOODS":
             nodeid = seq[1]
@@ -319,12 +322,14 @@ class NodeConnector(object):
             forward(message)
 
         elif seq[0] == "NODE_ID":
-            nodeid = seq[1]
-            parent_pk = seq[2]
-            parent_nodeid = seq[3]
-            timestamp = seq[4]
+            pk = seq[1]
+            nodeid = seq[2]
+            parent_pk = seq[3]
+            parent_nodeid = seq[4]
+            timestamp = seq[5]
             node_map[parent_nodeid] = parent_pk
-            print(current_port, "NODE_ID", nodeid, parent_nodeid, parent_pk, seq[-1])
+            node_map[nodeid] = pk
+            print(current_port, "NODE_ID", nodeid, pk, parent_nodeid, parent_pk, seq[-1])
             if self.branch == nodeid:
                 current_nodeid = nodeid
 
