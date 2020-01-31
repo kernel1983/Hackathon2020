@@ -85,10 +85,13 @@ def mining():
         tree.forward(tree.parent_node_id_msg)
         print(tree.current_port, 'parent_node_id_msg', tree.parent_node_id_msg)
 
+    now = int(time.time())
+    last_synctime = now - now % setting.NETWORK_SPREADING_SECONDS - setting.NETWORK_SPREADING_SECONDS
     nodes_to_update = {}
     for nodeid in tree.nodes_pool:
-        if nodeid not in nodes_in_chain or nodes_in_chain[nodeid] != tree.nodes_pool[nodeid]:
-            nodes_to_update[nodeid] = tree.nodes_pool[nodeid]
+        if tree.nodes_pool[nodeid][1] < last_synctime:
+            if nodeid not in nodes_in_chain or nodes_in_chain[nodeid] != tree.nodes_pool[nodeid]:
+                nodes_to_update[nodeid] = tree.nodes_pool[nodeid]
 
     nodes_in_chain.update(tree.nodes_pool)
     tree.nodes_pool = nodes_in_chain
