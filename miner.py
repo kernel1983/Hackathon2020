@@ -69,34 +69,31 @@ def mining():
     longest = longest_chain()
     update_leader(longest)
 
-    nodes = {}
+    nodes_in_chain = {}
     for i in longest:
         data = tornado.escape.json_decode(i.data)
-        if data.get("nodes"):print(i.height, data["nodes"])
-        nodes.update(data.get("nodes", {}))
+        # if data.get("nodes"):print(i.height, data["nodes"])
+        nodes_in_chain.update(data.get("nodes", {}))
         # print(' ', nodes)
 
-    nonce_interval = len(nodes)
+    nonce_interval = len(nodes_in_chain)
     if nonce == 0:
         nonce = tree.nodeid2no(tree.current_nodeid)
     print(tree.current_port, 'nonce', nonce, 'nonce_interval', nonce_interval)
 
-    if tree.current_nodeid not in nodes and tree.parent_node_id_msg:
+    if tree.current_nodeid not in nodes_in_chain and tree.parent_node_id_msg:
         tree.forward(tree.parent_node_id_msg)
         print(tree.current_port, 'parent_node_id_msg', tree.parent_node_id_msg)
 
-    update_nodes = {}
-    for nodeid in tree.node_map:
-        if nodeid in nodes:
-            if nodes[nodeid] != tree.node_map[nodeid]:
-                update_nodes[nodeid] = tree.node_map[nodeid]
-        else:
-            update_nodes[nodeid] = tree.node_map[nodeid]
+    nodes_to_update = {}
+    for nodeid in tree.nodes_pool:
+        if nodeid not in nodes_in_chain or nodes_in_chain[nodeid] != tree.nodes_pool[nodeid]:
+            nodes_to_update[nodeid] = tree.nodes_pool[nodeid]
 
-    nodes.update(tree.node_map)
-    tree.node_map = nodes
-    # print(tree.node_map)
-    # print(update_nodes)
+    nodes_in_chain.update(tree.nodes_pool)
+    tree.nodes_pool = nodes_in_chain
+    # print(tree.nodes_pool)
+    # print(nodes_to_update)
 
     # print(longest)
     if longest:
@@ -118,11 +115,11 @@ def mining():
     else:
         longest_hash, difficulty, new_difficulty, data, identity = "0"*64, 1, 1, {}, ""
 
-    # data = {"nodes": {k:list(v) for k, v in tree.node_map.items()}}
-    data["nodes"] = update_nodes
+    # data = {"nodes": {k:list(v) for k, v in tree.nodes_pool.items()}}
+    data["nodes"] = nodes_to_update
     data_json = tornado.escape.json_encode(data)
 
-    new_identity = "%s:%s"%(tree.current_host, tree.current_port)
+    new_identity = "%s@%s:%s" % (tree.current_nodeid, tree.current_host, tree.current_port)
     new_timestamp = time.time()
     for i in range(10):
         block_hash = hashlib.sha256((longest_hash + data_json + str(new_timestamp) + str(difficulty) + str(nonce)).encode('utf8')).hexdigest()

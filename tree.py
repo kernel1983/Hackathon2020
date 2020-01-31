@@ -36,7 +36,7 @@ available_branches = set()
 
 node_neighborhoods = dict()
 node_parents = dict()
-node_map = dict()
+nodes_pool = dict()
 parent_node_id_msg = None
 
 processed_message_ids = set()
@@ -158,7 +158,7 @@ class NodeHandler(tornado.websocket.WebSocketHandler):
     def on_message(self, message):
         global current_nodeid
         global node_neighborhoods
-        global node_map
+        global nodes_pool
 
         seq = tornado.escape.json_decode(message)
         # print(current_port, "on message from child", seq)
@@ -179,8 +179,10 @@ class NodeHandler(tornado.websocket.WebSocketHandler):
             parent_pk = seq[3]
             parent_nodeid = seq[4]
             timestamp = seq[5]
-            node_map[parent_nodeid] = parent_pk
-            node_map[nodeid] = pk
+
+            if parent_nodeid == "":
+                nodes_pool[parent_nodeid] = [parent_pk, timestamp]
+            nodes_pool[nodeid] = [pk, timestamp]
             print(current_port, "NODE_ID", nodeid, pk, parent_nodeid, parent_pk, seq[-1])
 
         elif seq[0] == "NODE_NEIGHBOURHOODS":
@@ -282,7 +284,7 @@ class NodeConnector(object):
         global current_nodeid
         global node_parents
         global node_neighborhoods
-        global node_map
+        global nodes_pool
         global parent_node_id_msg
 
         if message is None:
@@ -327,8 +329,10 @@ class NodeConnector(object):
             parent_pk = seq[3]
             parent_nodeid = seq[4]
             timestamp = seq[5]
-            node_map[parent_nodeid] = parent_pk
-            node_map[nodeid] = pk
+
+            if parent_nodeid == "":
+                nodes_pool[parent_nodeid] = [parent_pk, timestamp]
+            nodes_pool[nodeid] = [pk, timestamp]
             print(current_port, "NODE_ID", nodeid, pk, parent_nodeid, parent_pk, seq[-1])
             if self.branch == nodeid:
                 current_nodeid = nodeid
