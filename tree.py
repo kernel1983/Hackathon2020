@@ -152,7 +152,7 @@ class NodeHandler(tornado.websocket.WebSocketHandler):
 
         message = ["NODE_ID", None, self.branch, None, current_nodeid, time.time()]
         sign_msg(message)
-        self.write_message(tornado.escape.json_encode(message))
+        forward(message)
 
     @tornado.gen.coroutine
     def on_message(self, message):

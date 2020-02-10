@@ -16,7 +16,8 @@ create_chain = """CREATE TABLE IF NOT EXISTS `chain%s` (
     `data` mediumtext NOT NULL,
     PRIMARY KEY (`id`),
     KEY `identity` (`identity`),
-    UNIQUE KEY `hash` (`hash`)
+    UNIQUE KEY `hash` (`hash`),
+    KEY `prev_hash` (`prev_hash`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 """
 

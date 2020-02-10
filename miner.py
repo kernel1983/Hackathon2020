@@ -20,8 +20,10 @@ import leader
 import database
 
 
-def longest_chain(root_hash = '0'*64):
-    roots = database.connection.query("SELECT * FROM chain"+tree.current_port+" WHERE prev_hash = %s ORDER BY nonce", root_hash)
+frozen_block_hash = '0'*64
+def longest_chain(frozen_hash = '0'*64):
+    global frozen_block_hash
+    roots = database.connection.query("SELECT * FROM chain"+tree.current_port+" WHERE prev_hash = %s ORDER BY nonce", frozen_hash)
 
     chains = []
     prev_hashs = []
@@ -30,6 +32,8 @@ def longest_chain(root_hash = '0'*64):
         chains.append([root])
         prev_hashs.append(root.hash)
 
+    t0 = time.time()
+    n = 0
     while True:
         if prev_hashs:
             prev_hash = prev_hashs.pop(0)
@@ -37,6 +41,7 @@ def longest_chain(root_hash = '0'*64):
             break
 
         leaves = database.connection.query("SELECT * FROM chain"+tree.current_port+" WHERE prev_hash = %s ORDER BY nonce", prev_hash)
+        n += 1
         if len(leaves) > 0:
             for leaf in leaves:
                 for c in chains:
@@ -48,6 +53,8 @@ def longest_chain(root_hash = '0'*64):
                         break
                 if leaf.hash not in prev_hashs and leaf.hash:
                     prev_hashs.append(leaf.hash)
+    t1 = time.time()
+    print(tree.current_port, "query time", t1-t0, n)
 
     longest = []
     for i in chains:
@@ -65,9 +72,13 @@ nonce_interval = 0
 def mining():
     global nonce
     global nonce_interval
+    global frozen_block_hash
 
-    longest = longest_chain()
-    update_leader(longest)
+    longest = longest_chain(frozen_block_hash)
+    if longest:
+        update_leader(longest)
+    if len(longest) >= setting.FROZEN_BLOCK_NO:
+        frozen_block_hash = longest[-setting.FROZEN_BLOCK_NO].hash
 
     nodes_in_chain = {}
     for i in longest:
@@ -113,7 +124,9 @@ def mining():
 
         if "%s:%s"%(tree.current_host, tree.current_port) in [i.identity for i in longest[-6:]]:
             # this is a good place to wake up leader by timestamp
-            return
+            # tornado.ioloop.IOLoop.instance().call_later(1, mining)
+            # return
+            pass
 
     else:
         longest_hash, difficulty, new_difficulty, data, identity = "0"*64, 1, 1, {}, ""
@@ -138,7 +151,10 @@ def mining():
 
         nonce += nonce_interval
 
+    tornado.ioloop.IOLoop.instance().call_later(1, mining)
+
 def new_block(seq):
+    global frozen_block_hash
     msg_header, block_hash, longest_hash, height, nonce, difficulty, identity, data, timestamp, msg_id = seq
 
     try:
@@ -146,29 +162,31 @@ def new_block(seq):
     except:
         pass
 
-    longest = longest_chain()
-    update_leader(longest)
+    longest = longest_chain(frozen_block_hash)
+    if longest:
+        update_leader(longest)
+    if len(longest) >= setting.FROZEN_BLOCK_NO:
+        frozen_block_hash = longest[-setting.FROZEN_BLOCK_NO].hash
     print(tree.current_port, "current view", leader.current_view, "system view", leader.system_view)
 
 def update_leader(longest):
-    height = 0
-    if longest:
-        height = longest[-1].height
-        leaders = set([tuple(i.identity.split(":")) for i in longest[-setting.LEADERS_NUM-setting.ELECTION_WAIT:-setting.ELECTION_WAIT]])
-        leader.update(leaders)
-        # this method to wake up leader to work, is not as good as the timestamp way
+    height = longest[-1].height
+    leaders = set([tuple(i.identity.split(":")) for i in longest[-setting.LEADERS_NUM-setting.ELECTION_WAIT:-setting.ELECTION_WAIT]])
+    leader.update(leaders)
+    # this method to wake up leader to work, is not as good as the timestamp way
 
-        for i in longest[-setting.LEADERS_NUM-setting.ELECTION_WAIT:-setting.ELECTION_WAIT]:
-            if i.identity == "%s:%s"%(tree.current_host, tree.current_port):
-                leader.current_view = i.height
-                break
+    for i in longest[-setting.LEADERS_NUM-setting.ELECTION_WAIT:-setting.ELECTION_WAIT]:
+        if i.identity == "%s:%s"%(tree.current_host, tree.current_port):
+            leader.current_view = i.height
+            break
 
     if height - (setting.LEADERS_NUM+setting.ELECTION_WAIT-1) > 0:
         leader.system_view = height - (setting.LEADERS_NUM+setting.ELECTION_WAIT-1)
 
 class GetChainHandler(tornado.web.RequestHandler):
     def get(self):
-        chain = [i["hash"] for i in longest_chain()]
+        global frozen_block_hash
+        chain = [i["hash"] for i in longest_chain(frozen_block_hash)]
         self.finish({'chain': chain})
 
 class GetBlockHandler(tornado.web.RequestHandler):
@@ -181,8 +199,9 @@ class GetBlockHandler(tornado.web.RequestHandler):
 def main():
     print(tree.current_port, "miner")
 
-    mining_task = tornado.ioloop.PeriodicCallback(mining, 1000) # , jitter=0.5
-    mining_task.start()
+    # mining_task = tornado.ioloop.PeriodicCallback(mining, 1000) # , jitter=0.5
+    # mining_task.start()
+    tornado.ioloop.IOLoop.instance().call_later(1, mining)
 
 if __name__ == '__main__':
     print("run python node.py pls")
