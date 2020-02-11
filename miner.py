@@ -112,6 +112,7 @@ def mining():
     # print(longest)
     if longest:
         longest_hash = longest[-1].hash
+        height = longest[-1].height
         difficulty = longest[-1].difficulty
         identity = longest[-1].identity
         data = tornado.escape.json_decode(longest[-1].data)
@@ -129,7 +130,7 @@ def mining():
             pass
 
     else:
-        longest_hash, difficulty, new_difficulty, data, identity = "0"*64, 1, 1, {}, ""
+        longest_hash, height, difficulty, new_difficulty, data, identity = "0"*64, 0, 1, 1, {}, ""
 
     # data = {"nodes": {k:list(v) for k, v in tree.nodes_pool.items()}}
     data["nodes"] = nodes_to_update
@@ -141,9 +142,9 @@ def mining():
         block_hash = hashlib.sha256((longest_hash + data_json + str(new_timestamp) + str(difficulty) + str(nonce)).encode('utf8')).hexdigest()
         if int(block_hash, 16) < int("1" * (256-difficulty), 2):
             if longest:
-                print(tree.current_port, 'height', len(longest), 'nodeid', tree.current_nodeid, 'nonce_init', tree.nodeid2no(tree.current_nodeid), 'timecost', longest[-1].timestamp - longest[0].timestamp)
+                print(tree.current_port, 'height', height, 'nodeid', tree.current_nodeid, 'nonce_init', tree.nodeid2no(tree.current_nodeid), 'timecost', longest[-1].timestamp - longest[0].timestamp)
 
-            message = ["NEW_CHAIN_BLOCK", block_hash, longest_hash, len(longest)+1, nonce, new_difficulty, new_identity, data, new_timestamp, uuid.uuid4().hex]
+            message = ["NEW_CHAIN_BLOCK", block_hash, longest_hash, height+1, nonce, new_difficulty, new_identity, data, new_timestamp, uuid.uuid4().hex]
             tree.forward(message)
             # print(tree.current_port, "mining", nonce, block_hash)
             nonce = 0
