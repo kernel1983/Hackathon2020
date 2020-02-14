@@ -87,9 +87,8 @@ def mining():
         frozen_longest = []
         recent_longest = longest
 
-    print("frozen_longest")
     for i in frozen_longest:
-        print(i.height)
+        print("frozen_longest", i.height)
         data = tornado.escape.json_decode(i.data)
         frozen_nodes_in_chain.update(data.get("nodes", {}))
 
@@ -114,11 +113,12 @@ def mining():
     nodes_to_update = {}
     for nodeid in tree.nodes_pool:
         if tree.nodes_pool[nodeid][1] < last_synctime:
-            if nodeid not in nodes_in_chain or nodes_in_chain[nodeid] != tree.nodes_pool[nodeid]:
+            if nodeid not in nodes_in_chain or nodes_in_chain[nodeid][1] < tree.nodes_pool[nodeid][1]:
+                print("nodes_to_update", nodeid, tree.nodes_pool[nodeid][1], last_synctime)
                 nodes_to_update[nodeid] = tree.nodes_pool[nodeid]
 
-    nodes_in_chain.update(tree.nodes_pool)
-    tree.nodes_pool = nodes_in_chain
+    # nodes_in_chain.update(tree.nodes_pool)
+    # tree.nodes_pool = nodes_in_chain
     # print(tree.nodes_pool)
     # print(nodes_to_update)
 

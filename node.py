@@ -130,6 +130,11 @@ class DashboardHandler(tornado.web.RequestHandler):
             pk = tree.nodes_pool[nodeid]
             self.write("%s: %s<br>" %(nodeid, pk))
 
+        self.write("<br>frozen_nodes_in_chain:<br>")
+        for nodeid in miner.frozen_nodes_in_chain:
+            pk = miner.frozen_nodes_in_chain[nodeid]
+            self.write("%s: %s<br>" %(nodeid, pk))
+
         self.write("<br>available_branches:<br>")
         for branch in branches:
             self.write("%s:%s %s <br>" % branch)

@@ -247,7 +247,9 @@ class NodeConnector(object):
         tornado.websocket.websocket_connect(self.ws_uri,
                                 callback = self.on_connect,
                                 on_message_callback = self.on_message,
-                                connect_timeout = 10.0)
+                                connect_timeout = 100.0,
+                                ping_timeout = 60.0
+                            )
 
     def close(self):
         if NodeConnector.parent_node:
