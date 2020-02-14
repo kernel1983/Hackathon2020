@@ -21,6 +21,7 @@ import database
 
 
 frozen_block_hash = '0'*64
+frozen_nodes_in_chain = {}
 def longest_chain(frozen_hash = '0'*64):
     global frozen_block_hash
     roots = database.connection.query("SELECT * FROM chain"+tree.current_port+" WHERE prev_hash = %s ORDER BY nonce", frozen_hash)
@@ -73,19 +74,31 @@ def mining():
     global nonce
     global nonce_interval
     global frozen_block_hash
+    global frozen_nodes_in_chain
 
     longest = longest_chain(frozen_block_hash)
     if longest:
         update_leader(longest)
     if len(longest) >= setting.FROZEN_BLOCK_NO:
-        frozen_block_hash = longest[-setting.FROZEN_BLOCK_NO].hash
+        frozen_block_hash = longest[-setting.FROZEN_BLOCK_NO].prev_hash
+        frozen_longest = longest[:-setting.FROZEN_BLOCK_NO]
+        recent_longest = longest[-setting.FROZEN_BLOCK_NO:]
+    else:
+        frozen_longest = []
+        recent_longest = longest
 
-    nodes_in_chain = {}
-    for i in longest:
+    print("frozen_longest")
+    for i in frozen_longest:
+        print(i.height)
         data = tornado.escape.json_decode(i.data)
-        # if data.get("nodes"):print(i.height, data["nodes"])
+        frozen_nodes_in_chain.update(data.get("nodes", {}))
+
+    nodes_in_chain = copy.copy(frozen_nodes_in_chain)
+    print("recent_longest")
+    for i in recent_longest:
+        print(i.height)
+        data = tornado.escape.json_decode(i.data)
         nodes_in_chain.update(data.get("nodes", {}))
-        # print(' ', nodes)
 
     nonce_interval = len(nodes_in_chain)
     if nonce == 0:
