@@ -22,6 +22,7 @@ import database
 
 frozen_block_hash = '0'*64
 frozen_nodes_in_chain = {}
+nodes_in_chain = {}
 def longest_chain(frozen_hash = '0'*64):
     global frozen_block_hash
     roots = database.connection.query("SELECT * FROM chain"+tree.current_port+" WHERE prev_hash = %s ORDER BY nonce", frozen_hash)
@@ -75,6 +76,7 @@ def mining():
     global nonce_interval
     global frozen_block_hash
     global frozen_nodes_in_chain
+    global nodes_in_chain
 
     longest = longest_chain(frozen_block_hash)
     if longest:
@@ -114,7 +116,7 @@ def mining():
     for nodeid in tree.nodes_pool:
         if tree.nodes_pool[nodeid][1] < last_synctime:
             if nodeid not in nodes_in_chain or nodes_in_chain[nodeid][1] < tree.nodes_pool[nodeid][1]:
-                print("nodes_to_update", nodeid, tree.nodes_pool[nodeid][1], last_synctime)
+                print("nodes_to_update", nodeid, nodes_in_chain[nodeid][1], tree.nodes_pool[nodeid][1], last_synctime)
                 nodes_to_update[nodeid] = tree.nodes_pool[nodeid]
 
     # nodes_in_chain.update(tree.nodes_pool)
@@ -197,9 +199,33 @@ def update_leader(longest):
     if height - (setting.LEADERS_NUM+setting.ELECTION_WAIT-1) > 0:
         leader.system_view = height - (setting.LEADERS_NUM+setting.ELECTION_WAIT-1)
 
+@tornado.gen.coroutine
+def get_chain(host, port):
+    global frozen_block_hash
+
+    http_client = tornado.httpclient.AsyncHTTPClient()
+    print("get_chain", frozen_block_hash)
+    local_chain = [i["hash"] for i in longest_chain(frozen_block_hash)]
+    response = yield http_client.fetch("http://%s:%s/get_chain?from=%s" % (host, port, frozen_block_hash))
+    result = tornado.escape.json_decode(response.body)
+    chain = result["chain"]
+    block_hashes_to_fetch = set(chain)-set(local_chain)
+    print("fetch chain", block_hashes_to_fetch)
+    for block_hash in block_hashes_to_fetch:
+        response = yield http_client.fetch("http://%s:%s/get_block?hash=%s" % (host, port, block_hash))
+        result = tornado.escape.json_decode(response.body)
+        block = result["block"]
+        try:
+            database.connection.execute("INSERT INTO chain"+current_port+" (hash, prev_hash, height, nonce, difficulty, identity, timestamp, data) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+                block["hash"], block["prev_hash"], block["height"], block["nonce"], block["difficulty"], block["identity"], block["timestamp"], block["data"])
+        except Exception as e:
+            print("Error: %s" % e)
+
 class GetChainHandler(tornado.web.RequestHandler):
     def get(self):
         global frozen_block_hash
+        block_hash = self.get_argument("from")
+        print("GetChainHandler", frozen_block_hash, block_hash)
         chain = [i["hash"] for i in longest_chain(frozen_block_hash)]
         self.finish({'chain': chain})
 
@@ -211,11 +237,33 @@ class GetBlockHandler(tornado.web.RequestHandler):
 
 @tornado.gen.coroutine
 def main():
+    global frozen_block_hash
+    global frozen_nodes_in_chain
+    global nodes_in_chain
+
     print(tree.current_port, "miner")
+    longest = longest_chain(frozen_block_hash)
+    if len(longest) >= setting.FROZEN_BLOCK_NO:
+        frozen_block_hash = longest[-setting.FROZEN_BLOCK_NO].prev_hash
+        frozen_longest = longest[:-setting.FROZEN_BLOCK_NO]
+        recent_longest = longest[-setting.FROZEN_BLOCK_NO:]
+    else:
+        frozen_longest = []
+        recent_longest = longest
+
+    for i in frozen_longest:
+        print("frozen_longest", i.height)
+        data = tornado.escape.json_decode(i.data)
+        frozen_nodes_in_chain.update(data.get("nodes", {}))
+
+    if int(tree.current_port) > 8001:
+        no = int(tree.current_port) - 8000
+        port = (no >> 1) + 8000
+        get_chain(tree.current_host, port)
 
     # mining_task = tornado.ioloop.PeriodicCallback(mining, 1000) # , jitter=0.5
     # mining_task.start()
-    tornado.ioloop.IOLoop.instance().call_later(1, mining)
+    tornado.ioloop.IOLoop.instance().call_later(20, mining)
 
 if __name__ == '__main__':
     print("run python node.py pls")

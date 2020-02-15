@@ -247,8 +247,8 @@ class NodeConnector(object):
         tornado.websocket.websocket_connect(self.ws_uri,
                                 callback = self.on_connect,
                                 on_message_callback = self.on_message,
-                                connect_timeout = 100.0,
-                                ping_timeout = 60.0
+                                connect_timeout = 1000.0,
+                                ping_timeout = 600.0
                             )
 
     def close(self):
@@ -256,6 +256,7 @@ class NodeConnector(object):
             NodeConnector.parent_node = None
         self.conn.close()
 
+    @tornado.gen.coroutine
     def on_connect(self, future):
         print(current_port, "node connect", self.branch)
 
@@ -395,6 +396,7 @@ class NodeConnector(object):
 
 # connector to control center
 control_node = None
+@tornado.gen.coroutine
 def on_connect(future):
     global control_node
 
@@ -427,7 +429,6 @@ def bootstrap(addr):
         host, port, branch = branches[0]
         current_branch = tuple(branches[0])
         NodeConnector(host, port, branch)
-        get_chain(host, port)
     else:
         tornado.ioloop.IOLoop.instance().call_later(1.0, functools.partial(bootstrap, addr))
 
@@ -473,32 +474,11 @@ def connect():
             no = int(current_port) - 8000
             port = (no >> 1) + 8000
             NodeConnector(current_host, port, bin(no)[3:])
-            get_chain(current_host, port)
 
         else:
             available_branches.add(tuple([current_host, current_port, "0"]))
             available_branches.add(tuple([current_host, current_port, "1"]))
             current_nodeid = ""
-
-@tornado.gen.coroutine
-def get_chain(host, port):
-    http_client = tornado.httpclient.AsyncHTTPClient()
-    local_chain = [i["hash"] for i in miner.longest_chain()]
-    response = yield http_client.fetch("http://%s:%s/get_chain" % (host, port))
-    result = tornado.escape.json_decode(response.body)
-    chain = result["chain"]
-    if len(chain) > len(local_chain):
-        block_hashes_to_fetch = set(chain)-set(local_chain)
-        print("fetch chain", block_hashes_to_fetch)
-        for block_hash in block_hashes_to_fetch:
-            response = yield http_client.fetch("http://%s:%s/get_block?hash=%s" % (host, port, block_hash))
-            result = tornado.escape.json_decode(response.body)
-            block = result["block"]
-            try:
-                database.connection.execute("INSERT INTO chain"+current_port+" (hash, prev_hash, height, nonce, difficulty, identity, timestamp, data) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)", 
-                    block["hash"], block["prev_hash"], block["height"], block["nonce"], block["difficulty"], block["identity"], block["timestamp"], block["data"])
-            except Exception as e:
-                print("Error: %s" % e)
 
 
 def main():
@@ -523,6 +503,7 @@ def main():
     # parser.add_argument('--pirvate_key', default=)
     # pirvate_key_file = args.pirvate_key
     node_sk = SigningKey.from_pem(open('data/pk/pk'+current_port).read())
+    tornado.ioloop.IOLoop.instance().call_later(int(current_port)-8000, connect)
 
 if __name__ == '__main__':
     print("run python node.py pls")
