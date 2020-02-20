@@ -11,7 +11,7 @@ create_chain = """CREATE TABLE IF NOT EXISTS `chain%s` (
     `height` int(11) unsigned NOT NULL,
     `nonce` int(11) unsigned NOT NULL,
     `difficulty` smallint(5) unsigned NOT NULL,
-    `identity` varchar(66) NOT NULL DEFAULT '',
+    `identity` varchar(128) NOT NULL DEFAULT '',
     `timestamp` int(11) unsigned NOT NULL,
     `data` mediumtext NOT NULL,
     PRIMARY KEY (`id`),

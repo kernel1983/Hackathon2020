@@ -56,7 +56,7 @@ def longest_chain(frozen_hash = '0'*64):
                 if leaf.hash not in prev_hashs and leaf.hash:
                     prev_hashs.append(leaf.hash)
     t1 = time.time()
-    print(tree.current_port, "query time", t1-t0, n)
+    # print(tree.current_port, "query time", t1-t0, n)
 
     longest = []
     for i in chains:
@@ -69,11 +69,11 @@ def longest_chain(frozen_hash = '0'*64):
 
 
 nonce = 0
-nonce_interval = 0
+# nonce_interval = 0
 @tornado.gen.coroutine
 def mining():
     global nonce
-    global nonce_interval
+    # global nonce_interval
     global frozen_block_hash
     global frozen_nodes_in_chain
     global nodes_in_chain
@@ -101,10 +101,10 @@ def mining():
             print("recent_longest", i.height, j, data["nodes"][j])
         nodes_in_chain.update(data.get("nodes", {}))
 
-    nonce_interval = len(nodes_in_chain)
-    if nonce == 0:
-        nonce = tree.nodeid2no(tree.current_nodeid)
-    print(tree.current_port, 'nonce', nonce, 'nonce_interval', nonce_interval)
+    # nonce_interval = len(nodes_in_chain)
+    # if nonce == 0:
+    #     nonce = tree.nodeid2no(tree.current_nodeid)
+    # print(tree.current_port, 'nonce', nonce, 'nonce_interval', nonce_interval)
 
     if tree.current_nodeid not in nodes_in_chain and tree.parent_node_id_msg:
         tree.forward(tree.parent_node_id_msg)
@@ -126,7 +126,7 @@ def mining():
 
     # print(longest)
     if longest:
-        longest_hash = longest[-1].hash
+        prev_hash = longest[-1].hash
         height = longest[-1].height
         difficulty = longest[-1].difficulty
         identity = longest[-1].identity
@@ -137,6 +137,7 @@ def mining():
             new_difficulty = min(255, difficulty + 1)
         else:
             new_difficulty = max(1, difficulty - 1)
+        # print(tree.control_port, "new difficulty", new_difficulty, "height", height)
 
         if "%s:%s"%(tree.current_host, tree.current_port) in [i.identity for i in longest[-6:]]:
             # this is a good place to wake up leader by timestamp
@@ -145,36 +146,38 @@ def mining():
             pass
 
     else:
-        longest_hash, height, difficulty, new_difficulty, data, identity = "0"*64, 0, 1, 1, {}, ""
+        prev_hash, height, difficulty, new_difficulty, data, identity = "0"*64, 0, 1, 1, {}, ""
 
     # data = {"nodes": {k:list(v) for k, v in tree.nodes_pool.items()}}
     data["nodes"] = nodes_to_update
     data_json = tornado.escape.json_encode(data)
 
-    new_identity = "%s@%s:%s" % (tree.current_nodeid, tree.current_host, tree.current_port)
+    # new_identity = "%s@%s:%s" % (tree.current_nodeid, tree.current_host, tree.current_port)
+    new_identity = base64.b16encode(tree.node_sk.get_verifying_key().to_string()).decode("utf8")
     new_timestamp = time.time()
-    for i in range(10):
-        block_hash = hashlib.sha256((longest_hash + data_json + str(new_timestamp) + str(difficulty) + str(nonce)).encode('utf8')).hexdigest()
+    for i in range(100):
+        block_hash = hashlib.sha256((prev_hash + data_json + str(new_timestamp) + str(difficulty) + new_identity + str(nonce)).encode('utf8')).hexdigest()
         if int(block_hash, 16) < int("1" * (256-difficulty), 2):
             if longest:
                 print(tree.current_port, 'height', height, 'nodeid', tree.current_nodeid, 'nonce_init', tree.nodeid2no(tree.current_nodeid), 'timecost', longest[-1].timestamp - longest[0].timestamp)
 
-            message = ["NEW_CHAIN_BLOCK", block_hash, longest_hash, height+1, nonce, new_difficulty, new_identity, data, new_timestamp, uuid.uuid4().hex]
+            message = ["NEW_CHAIN_BLOCK", block_hash, prev_hash, height+1, nonce, new_difficulty, new_identity, data, new_timestamp, uuid.uuid4().hex]
             tree.forward(message)
             # print(tree.current_port, "mining", nonce, block_hash)
             nonce = 0
             break
 
-        nonce += nonce_interval
+        nonce += 1
+        # nonce += nonce_interval
 
     tornado.ioloop.IOLoop.instance().call_later(1, mining)
 
 def new_block(seq):
     global frozen_block_hash
-    msg_header, block_hash, longest_hash, height, nonce, difficulty, identity, data, timestamp, msg_id = seq
+    msg_header, block_hash, prev_hash, height, nonce, difficulty, identity, data, timestamp, msg_id = seq
 
     try:
-        database.connection.execute("INSERT INTO chain"+tree.current_port+" (hash, prev_hash, height, nonce, difficulty, identity, timestamp, data) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)", block_hash, longest_hash, height, nonce, difficulty, identity, timestamp, tornado.escape.json_encode(data))
+        database.connection.execute("INSERT INTO chain"+tree.current_port+" (hash, prev_hash, height, nonce, difficulty, identity, timestamp, data) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)", block_hash, prev_hash, height, nonce, difficulty, identity, timestamp, tornado.escape.json_encode(data))
     except:
         pass
 
