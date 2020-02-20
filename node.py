@@ -130,6 +130,16 @@ class DashboardHandler(tornado.web.RequestHandler):
             pk = tree.nodes_pool[nodeid]
             self.write("%s: %s<br>" %(nodeid, pk))
 
+        self.write("<br>nodes_in_chain:<br>")
+        for nodeid in miner.nodes_in_chain:
+            pk = miner.nodes_in_chain[nodeid]
+            self.write("%s: %s<br>" %(nodeid, pk))
+
+        self.write("<br>frozen_nodes_in_chain:<br>")
+        for nodeid in miner.frozen_nodes_in_chain:
+            pk = miner.frozen_nodes_in_chain[nodeid]
+            self.write("%s: %s<br>" %(nodeid, pk))
+
         self.write("<br>available_branches:<br>")
         for branch in branches:
             self.write("%s:%s %s <br>" % branch)
@@ -142,16 +152,13 @@ class DashboardHandler(tornado.web.RequestHandler):
         for node in leader.LeaderConnector.leader_nodes:
             self.write("%s:%s<br>" %(node.host, node.port))
 
-
         self.finish()
 
 def main():
-    tree.main()
     database.main()
+    tree.main()
+    miner.main()
     # fs.main()
-    tornado.ioloop.IOLoop.instance().call_later(20, miner.main)
-    # tornado.ioloop.IOLoop.instance().add_callback(tree.connect)
-    tornado.ioloop.IOLoop.instance().call_later(int(tree.current_port)-8000, tree.connect)
 
     server = Application()
     server.listen(tree.current_port, '0.0.0.0')
