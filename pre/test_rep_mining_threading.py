@@ -23,19 +23,19 @@ l256 = 2**256-1
 # l512 = 2**512-1
 
 print(pk_bytes)
-t0 = time.time()
 m = l256
 nonce = 0
 position = 1
 
-out = open('./rep.txt', 'w')
+out = open('./rep_threading.txt', 'w')
 out.write(base64.b16encode(pk_bytes).decode('utf8'))
 
 messages = []
-for i in range(2**13):
+for i in range(2**20):
     r = random.randrange(255)
     messages.append(r)
 
+t0 = time.time()
 r = messages.pop(0)
 def thread(n):
     global position
@@ -45,25 +45,26 @@ def thread(n):
     # position2 = position
     while True:
         d = sha256(pk_bytes)
-        lock.acquire()
+        # lock.acquire()
         nonce += 1
         nonce2 = nonce
-        lock.release()
+        # lock.release()
 
         d.update(util.number_to_string(position, 2**64-1))
         d.update(util.number_to_string(nonce2, 2**64-1))
         if util.string_to_number(d.digest()) < m:
             m = util.string_to_number(d.digest())
             print(n, d.hexdigest(), nonce2, position, nonce2/position)
-
+        if nonce % 10000000 == 0:
+            print(time.time() - t0, nonce, position, position/(time.time() - t0))
         if d.digest()[-1] == r:
             out.write("\n"+str(position)+' '+str(nonce2)+' '+str(n)+' '+str(r))
             if not messages:
                 break
-            lock.acquire()
+            # lock.acquire()
             position += 1
             r = messages.pop(0)
-            lock.release()
+            # lock.release()
 
 ts = []
 for i in range(4):
@@ -73,3 +74,5 @@ for t in ts:
     t.start()
 for t in ts:
     t.join()
+
+print(time.time() - t0)
