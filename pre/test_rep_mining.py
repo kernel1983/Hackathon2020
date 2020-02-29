@@ -26,9 +26,6 @@ m = l256
 nonce = 0
 position = 0
 
-out = open('./rep.txt', 'w')
-out.write(base64.b16encode(pk_bytes).decode('utf8'))
-
 messages = []
 for i in range(2**20):
     r = random.randrange(255)
@@ -59,5 +56,8 @@ while True:
             break
 
 print(time.time() - t0, nonce/(time.time() - t0), position/(time.time() - t0))
+
+out = open('./rep.txt', 'w')
+out.write(base64.b16encode(pk_bytes).decode('utf8'))
 for position, nonce, r in results:
     out.write("\n"+str(position)+' '+str(nonce)+' '+str(r))
