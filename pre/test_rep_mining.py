@@ -48,11 +48,11 @@ while True:
         d.update(util.number_to_string(nonce, 2**64-1))
         if util.string_to_number(d.digest()) < m:
             m = util.string_to_number(d.digest())
-            print(d.hexdigest(), nonce, position, nonce/position)
+            print(d.hexdigest(), nonce, position, position/(time.time() - t0))
         if nonce % 10000000 == 0:
             print(time.time() - t0, nonce, position, position/(time.time() - t0))
         if d.digest()[-1] == r:
-            out.write("\n"+str(position)+' '+str(nonce)+' '+str(n)+' '+str(r))
+            out.write("\n"+str(position)+' '+str(nonce)+' '+str(r))
             # print(d.hexdigest(), m, nonce, r)
             break
 

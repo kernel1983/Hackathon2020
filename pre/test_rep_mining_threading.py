@@ -54,9 +54,9 @@ def thread(n):
         d.update(util.number_to_string(nonce2, 2**64-1))
         if util.string_to_number(d.digest()) < m:
             m = util.string_to_number(d.digest())
-            print(n, d.hexdigest(), nonce2, position, nonce2/position)
-        if nonce % 10000000 == 0:
-            print(time.time() - t0, nonce, position, position/(time.time() - t0))
+            print(n, d.hexdigest(), nonce2, position, position/(time.time() - t0))
+        if nonce2 % 10000000 == 0:
+            print(time.time() - t0, nonce2, position, position/(time.time() - t0))
         if d.digest()[-1] == r:
             out.write("\n"+str(position)+' '+str(nonce2)+' '+str(n)+' '+str(r))
             if not messages:
