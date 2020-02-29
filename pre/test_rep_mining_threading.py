@@ -37,6 +37,7 @@ for i in range(2**20):
 
 t0 = time.time()
 r = messages.pop(0)
+results = []
 def thread(n):
     global position
     global nonce
@@ -58,7 +59,8 @@ def thread(n):
         if nonce2 % 10000000 == 0:
             print(time.time() - t0, nonce2, position, position/(time.time() - t0))
         if d.digest()[-1] == r:
-            out.write("\n"+str(position)+' '+str(nonce2)+' '+str(n)+' '+str(r))
+            # out.write("\n"+str(position)+' '+str(nonce2)+' '+str(n)+' '+str(r))
+            results.append([position, nonce2, n, r])
             if not messages:
                 break
             # lock.acquire()
@@ -76,3 +78,6 @@ for t in ts:
     t.join()
 
 print(time.time() - t0)
+for position, nonce2, n, r in results:
+    out.write("\n"+str(position)+' '+str(nonce2)+' '+str(n)+' '+str(r))
+

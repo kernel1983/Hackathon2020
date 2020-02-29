@@ -35,6 +35,7 @@ for i in range(2**20):
     messages.append(r)
 
 t0 = time.time()
+results = []
 while True:
     # r = util.number_to_string(random.randrange(255), 255)
     if not messages:
@@ -52,8 +53,11 @@ while True:
         if nonce % 10000000 == 0:
             print(time.time() - t0, nonce, position, position/(time.time() - t0))
         if d.digest()[-1] == r:
-            out.write("\n"+str(position)+' '+str(nonce)+' '+str(r))
+            # out.write("\n"+str(position)+' '+str(nonce)+' '+str(r))
+            results.append([position, nonce, r])
             # print(d.hexdigest(), m, nonce, r)
             break
 
 print(time.time() - t0)
+for position, nonce, r in results:
+    out.write("\n"+str(position)+' '+str(nonce)+' '+str(r))
