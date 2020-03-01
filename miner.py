@@ -230,9 +230,15 @@ def get_chain(host, port):
 class GetChainHandler(tornado.web.RequestHandler):
     def get(self):
         global frozen_block_hash
+        global frozen_chain
         block_hash = self.get_argument("from")
         print("GetChainHandler", frozen_block_hash, block_hash)
-        chain = [i["hash"] for i in longest_chain(block_hash)]
+
+        if block_hash in frozen_chain:
+            i = frozen_chain.index(block_hash)
+            chain = frozen_chain[i:] + [i["hash"] for i in longest_chain(frozen_block_hash)]
+        else:
+            chain = [i["hash"] for i in longest_chain(block_hash)]
         self.finish({'chain': chain})
 
 class GetBlockHandler(tornado.web.RequestHandler):
