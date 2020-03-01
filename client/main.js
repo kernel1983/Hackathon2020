@@ -80,8 +80,8 @@ function createWindow() {
     var tree = merkle('sha256').sync(hashes)
     var file_meta = {
       'type': 'file',
-      'filename': filename,
-      'objects': hashes
+      // 'filename': filename,
+      'blobs': hashes
     }
     const file_meta_hash = put_meta(file_meta)
     console.log(tree.root())
@@ -140,9 +140,9 @@ function createWindow() {
     const fd = fs.openSync(filename, 'w')
     // var hashes = []
     // var buffer = new Buffer.alloc(2 ** 20)
-    for (var i in file_meta['objects']) {
-      console.log(file_meta['objects'][i])
-      const buffer = fs.readFileSync('data/' + file_meta['objects'][i])
+    for (var i in file_meta['blobs']) {
+      console.log(file_meta['blobs'][i])
+      const buffer = fs.readFileSync('data/blobs/' + file_meta['blobs'][i])
       // const stats = fs.fstatSync(fd)
       // var filesize_left = stats.size
 
