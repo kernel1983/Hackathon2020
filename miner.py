@@ -21,7 +21,7 @@ import database
 
 
 frozen_block_hash = '0'*64
-frozen_chain = []
+frozen_chain = ['0'*64]
 frozen_nodes_in_chain = {}
 nodes_in_chain = {}
 def longest_chain(from_hash = '0'*64):
@@ -236,7 +236,7 @@ class GetChainHandler(tornado.web.RequestHandler):
 
         if block_hash in frozen_chain:
             i = frozen_chain.index(block_hash)
-            chain = frozen_chain[i:] + [i["hash"] for i in longest_chain(frozen_block_hash)]
+            chain = frozen_chain[i+1:] + [i["hash"] for i in longest_chain(frozen_block_hash)]
         else:
             chain = [i["hash"] for i in longest_chain(block_hash)]
         self.finish({'chain': chain})

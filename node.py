@@ -153,8 +153,8 @@ class DashboardHandler(tornado.web.RequestHandler):
             self.write("%s:%s<br>" %(node.host, node.port))
 
         self.write("<br>frozen chain:<br>")
-        for h in miner.frozen_chain:
-            self.write("%s<br>" % h)
+        for i, h in enumerate(miner.frozen_chain):
+            self.write("%s %s<br>" % (i, h))
         self.finish()
 
 def main():

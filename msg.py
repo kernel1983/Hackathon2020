@@ -38,7 +38,7 @@ class GetChatHandler(tornado.web.RequestHandler):
 class NewMsgHandler(tornado.web.RequestHandler):
     def get(self):
         msg = {
-            "message":{"msgid":uuid.uuid4().hex ,"sender":"1", "receiver":"2", "timestamp":"3"},
+            "message":{"msgid":uuid.uuid4().hex, "sender":"1", "receiver":"2", "timestamp":"3"},
             "signature": "4"
         }
 
