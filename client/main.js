@@ -62,14 +62,14 @@ function createWindow() {
         filesize_left -= 2 ** 20
         fs.readSync(fd, buffer, 0, 2 ** 20)
         const sha256hash = shajs('sha256').update(buffer).digest('hex')
-        fs.writeFileSync('data/' + sha256hash, buffer)
+        fs.writeFileSync('data/blobs/' + sha256hash, buffer)
         hashes.push(sha256hash)
         console.log(sha256hash)
       } else {
         console.log(filesize_left)
         fs.readSync(fd, buffer, 0, filesize_left)
         const sha256hash = shajs('sha256').update(buffer.slice(0, filesize_left)).digest('hex')
-        fs.writeFileSync('data/' + sha256hash, buffer.slice(0, filesize_left))
+        fs.writeFileSync('data/blobs/' + sha256hash, buffer.slice(0, filesize_left))
         hashes.push(sha256hash)
         console.log(sha256hash)
         break
@@ -298,7 +298,7 @@ app.on('activate', function () {
 
 
 function get_meta(hash) {
-  const meta_buffer = fs.readFileSync('data/' + hash)
+  const meta_buffer = fs.readFileSync('data/metas/' + hash)
   const meta = JSON.parse(meta_buffer.toString())
   return meta
 }
@@ -306,7 +306,7 @@ function get_meta(hash) {
 function put_meta(obj) {
   const meta_json = JSON.stringify(obj)
   const meta_hash = shajs('sha256').update(meta_json).digest('hex')
-  fs.writeFileSync('data/' + meta_hash, meta_json)
+  fs.writeFileSync('data/metas/' + meta_hash, meta_json)
   console.log('meta_hash', meta_hash)
   console.log(obj)
   return meta_hash
