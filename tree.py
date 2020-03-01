@@ -394,18 +394,6 @@ class NodeConnector(object):
         # else:
         forward(seq)
 
-# connector to control center
-control_node = None
-@tornado.gen.coroutine
-def on_connect(future):
-    global control_node
-
-    try:
-        control_node = future.result()
-        control_node.write_message(tornado.escape.json_encode(["ADDRESS", current_host, current_port]))
-    except:
-        tornado.ioloop.IOLoop.instance().call_later(1.0, connect)
-
 @tornado.gen.coroutine
 def bootstrap(addr):
     global available_branches
@@ -432,8 +420,20 @@ def bootstrap(addr):
     else:
         tornado.ioloop.IOLoop.instance().call_later(1.0, functools.partial(bootstrap, addr))
 
+# connector to control center
+control_node = None
 @tornado.gen.coroutine
-def on_message(msg):
+def control_on_connect(future):
+    global control_node
+
+    try:
+        control_node = future.result()
+        control_node.write_message(tornado.escape.json_encode(["ADDRESS", current_host, current_port]))
+    except:
+        tornado.ioloop.IOLoop.instance().call_later(1.0, connect)
+
+@tornado.gen.coroutine
+def control_on_message(msg):
     global current_nodeid
     global available_branches
 
@@ -465,7 +465,7 @@ def connect():
     # print("\n\n")
     if control_host:
         print(current_port, "connect control", control_host, "port", control_port)
-        tornado.websocket.websocket_connect("ws://%s:%s/control" % (control_host, control_port), callback=on_connect, on_message_callback=on_message)
+        tornado.websocket.websocket_connect("ws://%s:%s/control" % (control_host, control_port), callback=control_on_connect, on_message_callback=control_on_message)
 
     if setting.BOOTSTRAP_BY_PORT_NO:
         if NodeConnector.parent_node:
@@ -473,7 +473,7 @@ def connect():
         if int(current_port) > 8001:
             no = int(current_port) - 8000
             port = (no >> 1) + 8000
-            NodeConnector(current_host, port, bin(no)[3:])
+            NodeConnector(parent_host, port, bin(no)[3:])
 
         else:
             available_branches.add(tuple([current_host, current_port, "0"]))
@@ -484,6 +484,8 @@ def connect():
 def main():
     global current_host
     global current_port
+    global parent_host
+    global parent_port
     global control_host
     global control_port
     global node_sk
@@ -491,12 +493,16 @@ def main():
     parser = argparse.ArgumentParser(description="node description")
     parser.add_argument('--host', default="127.0.0.1")
     parser.add_argument('--port')
+    parser.add_argument('--parent_host', default="127.0.0.1")
+    parser.add_argument('--parent_port', default=2018)
     parser.add_argument('--control_host')
     parser.add_argument('--control_port', default=8000)
 
     args = parser.parse_args()
     current_host = args.host
     current_port = args.port
+    parent_host = args.parent_host
+    parent_port = args.parent_port
     control_host = args.control_host
     control_port = args.control_port
 
