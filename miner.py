@@ -21,11 +21,12 @@ import database
 
 
 frozen_block_hash = '0'*64
+frozen_chain = []
 frozen_nodes_in_chain = {}
 nodes_in_chain = {}
-def longest_chain(frozen_hash = '0'*64):
-    global frozen_block_hash
-    roots = database.connection.query("SELECT * FROM chain"+tree.current_port+" WHERE prev_hash = %s ORDER BY nonce", frozen_hash)
+def longest_chain(from_hash = '0'*64):
+    # global frozen_block_hash
+    roots = database.connection.query("SELECT * FROM chain"+tree.current_port+" WHERE prev_hash = %s ORDER BY nonce", from_hash)
 
     chains = []
     prev_hashs = []
@@ -75,6 +76,7 @@ def mining():
     global nonce
     # global nonce_interval
     global frozen_block_hash
+    global frozen_chain
     global frozen_nodes_in_chain
     global nodes_in_chain
 
@@ -93,6 +95,8 @@ def mining():
         print("frozen_longest", i.height)
         data = tornado.escape.json_decode(i.data)
         frozen_nodes_in_chain.update(data.get("nodes", {}))
+        if i.hash not in frozen_chain:
+            frozen_chain.append(i.hash)
 
     nodes_in_chain = copy.copy(frozen_nodes_in_chain)
     for i in recent_longest:
@@ -208,7 +212,7 @@ def get_chain(host, port):
     http_client = tornado.httpclient.AsyncHTTPClient()
     print("get_chain", frozen_block_hash)
     local_chain = [i["hash"] for i in longest_chain(frozen_block_hash)]
-    response = yield http_client.fetch("http://%s:%s/get_chain?from=%s" % (host, port, frozen_block_hash))
+    response = yield http_client.fetch("http://%s:%s/get_chain?from=%s" % (host, port, frozen_block_hash), request_timeout=300)
     result = tornado.escape.json_decode(response.body)
     chain = result["chain"]
     block_hashes_to_fetch = set(chain)-set(local_chain)
@@ -240,28 +244,31 @@ class GetBlockHandler(tornado.web.RequestHandler):
 @tornado.gen.coroutine
 def main():
     global frozen_block_hash
+    global frozen_chain
     global frozen_nodes_in_chain
     global nodes_in_chain
 
     print(tree.current_port, "miner")
-    longest = longest_chain(frozen_block_hash)
+    longest = longest_chain()
     if len(longest) >= setting.FROZEN_BLOCK_NO:
         frozen_block_hash = longest[-setting.FROZEN_BLOCK_NO].prev_hash
         frozen_longest = longest[:-setting.FROZEN_BLOCK_NO]
-        recent_longest = longest[-setting.FROZEN_BLOCK_NO:]
+    #     recent_longest = longest[-setting.FROZEN_BLOCK_NO:]
     else:
         frozen_longest = []
-        recent_longest = longest
+    #     recent_longest = longest
 
     for i in frozen_longest:
         print("frozen_longest", i.height)
         data = tornado.escape.json_decode(i.data)
         frozen_nodes_in_chain.update(data.get("nodes", {}))
+        if i.hash not in frozen_chain:
+            frozen_chain.append(i.hash)
 
     if int(tree.current_port) > 8001:
         no = int(tree.current_port) - 8000
         port = (no >> 1) + 8000
-        get_chain(tree.current_host, port)
+        get_chain(tree.parent_host, port)
 
     # mining_task = tornado.ioloop.PeriodicCallback(mining, 1000) # , jitter=0.5
     # mining_task.start()
