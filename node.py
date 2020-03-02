@@ -37,8 +37,10 @@ class Application(tornado.web.Application):
                     (r"/new_tx", NewTxHandler),
                     (r"/dashboard", DashboardHandler),
                     # mtfs
-                    (r"/user", fs.UserHandler),
-                    (r"/object", fs.ObjectHandler),
+                    # (r"/user", fs.UserHandler),
+                    (r"/fs/new_file_meta", fs.NewFileMetaHandler),
+                    (r"/fs/new_file_blob", fs.NewFileBlobHandler),
+                    (r"/fs/new_root_home", fs.NewRootHomeHandler),
                     # (r"/activate_default_store", fs.ActivateDefaultStoreHandler),
                     (r"/new_msg", msg.NewMsgHandler),
                     (r"/get_msg", msg.GetMsgHandler),

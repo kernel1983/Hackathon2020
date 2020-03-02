@@ -145,7 +145,15 @@ class ActivateDefaultStoreHandler(tornado.web.RequestHandler):
         self.finish(vk_bytes)
 
 
-class ObjectHandler(tornado.web.RequestHandler):
+class NewFileMetaHandler(tornado.web.RequestHandler):
+    def post(self):
+        print(tree.current_nodeid, len(self.request.body), self.request.body)
+
+class NewFileBlobHandler(tornado.web.RequestHandler):
+    def post(self):
+        print(tree.current_nodeid, len(self.request.body), self.request.body)
+
+class NewRootHomeHandler(tornado.web.RequestHandler):
     def get(self):
         object_hash = self.get_argument("hash")
         user_id = self.get_argument("user_id")
@@ -160,15 +168,14 @@ class ObjectHandler(tornado.web.RequestHandler):
         self.finish(content)
 
     def post(self):
-        object_hash = self.get_argument("hash")
-        user_id = self.get_argument("user_id")
-        timestamp = self.get_argument("timestamp")
-        signature = self.get_argument("signature")
+        # object_hash = self.get_argument("hash")
+        # user_id = self.get_argument("user_id")
+        # timestamp = self.get_argument("timestamp")
+        # signature = self.get_argument("signature")
 
-        vk = keys.UmbralPublicKey.from_bytes(bytes.fromhex(str(user_id)))
-        sig = signing.Signature.from_bytes(bytes.fromhex(str(signature)))
-        assert sig.verify((object_hash+timestamp).encode("utf8"), vk)
-
+        # vk = keys.UmbralPublicKey.from_bytes(bytes.fromhex(str(user_id)))
+        # sig = signing.Signature.from_bytes(bytes.fromhex(str(signature)))
+        # assert sig.verify((object_hash+timestamp).encode("utf8"), vk)
         print(tree.current_nodeid, len(self.request.body), self.request.body)
 
 class UserHandler(tornado.web.RequestHandler):
