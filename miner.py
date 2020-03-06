@@ -46,6 +46,8 @@ def longest_chain(from_hash = '0'*64):
         leaves = database.connection.query("SELECT * FROM chain"+tree.current_port+" WHERE prev_hash = %s ORDER BY nonce", prev_hash)
         n += 1
         if len(leaves) > 0:
+            if leaves[0]['height'] % 1000 == 0:
+                print('longest height', leaves[0]['height'])
             for leaf in leaves:
                 for c in chains:
                     if c[-1].hash == prev_hash:
@@ -92,7 +94,8 @@ def mining():
         recent_longest = longest
 
     for i in frozen_longest:
-        print("frozen_longest", i.height)
+        if i.height % 1000 == 0:
+            print("frozen_longest", i.height)
         data = tornado.escape.json_decode(i.data)
         frozen_nodes_in_chain.update(data.get("nodes", {}))
         if i.hash not in frozen_chain:
@@ -176,14 +179,35 @@ def mining():
 
     tornado.ioloop.IOLoop.instance().call_later(1, mining)
 
+@tornado.gen.coroutine
 def new_block(seq):
     global frozen_block_hash
     msg_header, block_hash, prev_hash, height, nonce, difficulty, identity, data, timestamp, msg_id = seq
 
     try:
         database.connection.execute("INSERT INTO chain"+tree.current_port+" (hash, prev_hash, height, nonce, difficulty, identity, timestamp, data) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)", block_hash, prev_hash, height, nonce, difficulty, identity, timestamp, tornado.escape.json_encode(data))
-    except:
-        pass
+    except Exception as e:
+        print("Error: %s" % e)
+
+    block_hash = prev_hash
+    while block_hash != frozen_block_hash:
+        block = database.connection.get("SELECT * FROM chain"+tree.current_port+" WHERE hash = %s", block_hash)
+        if block:
+            if block['height'] % 1000 == 0:
+                print('block height', block['height'])
+            block_hash = block['prev_hash']
+            continue
+        response = yield http_client.fetch("http://%s:%s/get_block?hash=%s" % (host, port, block_hash))
+        result = tornado.escape.json_decode(response.body)
+        block = result["block"]
+        if block['height'] % 1000 == 0:
+            print("block fetch", block['height'])
+        block_hash = block['prev_hash']
+        try:
+            database.connection.execute("INSERT INTO chain"+tree.current_port+" (hash, prev_hash, height, nonce, difficulty, identity, timestamp, data) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+                block["hash"], block["prev_hash"], block["height"], block["nonce"], block["difficulty"], block["identity"], block["timestamp"], block["data"])
+        except Exception as e:
+            print("Error: %s" % e)
 
     longest = longest_chain(frozen_block_hash)
     if longest:
@@ -207,39 +231,39 @@ def update_leader(longest):
 
 @tornado.gen.coroutine
 def get_chain(host, port):
-    global frozen_block_hash
-
     http_client = tornado.httpclient.AsyncHTTPClient()
-    print("get_chain", frozen_block_hash)
-    local_chain = [i["hash"] for i in longest_chain(frozen_block_hash)]
-    response = yield http_client.fetch("http://%s:%s/get_chain?from=%s" % (host, port, frozen_block_hash), request_timeout=300)
+    response = yield http_client.fetch("http://%s:%s/get_highest_block" % (host, port), request_timeout=300)
     result = tornado.escape.json_decode(response.body)
-    chain = result["chain"]
-    block_hashes_to_fetch = set(chain)-set(local_chain)
-    print("fetch chain", block_hashes_to_fetch)
-    for block_hash in block_hashes_to_fetch:
+    block = result["block"]
+    block_hash = block['hash'] if block else '0'*64
+    print("get_highest_block", block_hash)
+    while block_hash != '0'*64:
+        block = database.connection.get("SELECT * FROM chain"+tree.current_port+" WHERE hash = %s", block_hash)
+        if block:
+            if block['height'] % 1000 == 0:
+                print('block height', block['height'])
+            block_hash = block['prev_hash']
+            continue
         response = yield http_client.fetch("http://%s:%s/get_block?hash=%s" % (host, port, block_hash))
         result = tornado.escape.json_decode(response.body)
         block = result["block"]
+        if block['height'] % 1000 == 0:
+            print("block fetch", block['height'])
+        block_hash = block['prev_hash']
         try:
             database.connection.execute("INSERT INTO chain"+tree.current_port+" (hash, prev_hash, height, nonce, difficulty, identity, timestamp, data) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
                 block["hash"], block["prev_hash"], block["height"], block["nonce"], block["difficulty"], block["identity"], block["timestamp"], block["data"])
         except Exception as e:
             print("Error: %s" % e)
 
-class GetChainHandler(tornado.web.RequestHandler):
+
+class GetHighestBlockHandler(tornado.web.RequestHandler):
     def get(self):
         global frozen_block_hash
-        global frozen_chain
-        block_hash = self.get_argument("from")
-        print("GetChainHandler", frozen_block_hash, block_hash)
-
-        if block_hash in frozen_chain:
-            i = frozen_chain.index(block_hash)
-            chain = frozen_chain[i+1:] + [i["hash"] for i in longest_chain(frozen_block_hash)]
-        else:
-            chain = [i["hash"] for i in longest_chain(block_hash)]
-        self.finish({'chain': chain})
+        print("GetHighestBlockHandler", frozen_block_hash)
+        chain = longest_chain(frozen_block_hash)
+        block = chain[-1] if chain else None
+        self.finish({"block": block})
 
 class GetBlockHandler(tornado.web.RequestHandler):
     def get(self):
@@ -254,7 +278,11 @@ def main():
     global frozen_nodes_in_chain
     global nodes_in_chain
 
-    print(tree.current_port, "miner")
+    if int(tree.current_port) > 8001:
+        no = int(tree.current_port) - 8000
+        port = (no >> 1) + 8000
+        yield get_chain(tree.parent_host, port)
+
     longest = longest_chain()
     if len(longest) >= setting.FROZEN_BLOCK_NO:
         frozen_block_hash = longest[-setting.FROZEN_BLOCK_NO].prev_hash
@@ -271,14 +299,11 @@ def main():
         if i.hash not in frozen_chain:
             frozen_chain.append(i.hash)
 
-    if int(tree.current_port) > 8001:
-        no = int(tree.current_port) - 8000
-        port = (no >> 1) + 8000
-        get_chain(tree.parent_host, port)
-
     # mining_task = tornado.ioloop.PeriodicCallback(mining, 1000) # , jitter=0.5
     # mining_task.start()
-    tornado.ioloop.IOLoop.instance().call_later(20, mining)
+    print(tree.current_port, "miner")
+    tornado.ioloop.IOLoop.instance().add_callback(tree.connect)
+    tornado.ioloop.IOLoop.instance().call_later(1, mining)
 
 if __name__ == '__main__':
     print("run python node.py pls")

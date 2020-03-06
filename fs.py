@@ -146,14 +146,52 @@ class ActivateDefaultStoreHandler(tornado.web.RequestHandler):
 
 
 class NewFileMetaHandler(tornado.web.RequestHandler):
+    @tornado.gen.coroutine
+    def get(self):
+        body = '''{"type":"file","blobs":["fd1e1f7378afd9c5e18cb4198f81c9129c5c8d7e0df6dc151bc39ecc0165408d","e9d3ef5f981e371465af217e09d9dfbb6681845a21beb199e62bef433e0369cf"]}'''
+        meta = tornado.escape.json_decode(body)
+
+        for blob in meta['blobs']:
+            blob_bin = bin(int(blob, 16))
+            print('>>>>>', blob, blob_bin[2:])
+
+            http_client = tornado.httpclient.AsyncHTTPClient()
+            host, port = tree.current_host, tree.current_port
+
+            # need to cache those query to speed up
+            while True:
+                # print("fetch chain", block_hash)
+                response = yield http_client.fetch("http://%s:%s/get_node?nodeid=%s" % (host, port, blob_bin[2:]))
+                result = tornado.escape.json_decode(response.body)
+                print('result >>>>>', result)
+                host, port = result['address']
+                if result['nodeid'] == result['current_nodeid']:
+                    break
+
+            # target_nodeid = tree.current_nodeid
+            # score = None
+            # # print(tree.current_port, tree.node_neighborhoods)
+            # for j in [tree.node_neighborhoods, tree.node_parents]:
+            #     for i in j:
+            #         new_score = tree.node_distance(blob_bin[2:], i)
+            #         if score is None or new_score < score:
+            #             score = new_score
+            #             target_nodeid = i
+            #             address = j[target_nodeid]
+            #         # print(i, new_score)
+            # print('>>>>>', target_nodeid, address)
+
+    @tornado.gen.coroutine
     def post(self):
         print(tree.current_nodeid, len(self.request.body), self.request.body)
 
 class NewFileBlobHandler(tornado.web.RequestHandler):
+    @tornado.gen.coroutine
     def post(self):
         print(tree.current_nodeid, len(self.request.body), self.request.body)
 
 class NewRootHomeHandler(tornado.web.RequestHandler):
+    @tornado.gen.coroutine
     def get(self):
         object_hash = self.get_argument("hash")
         user_id = self.get_argument("user_id")
@@ -167,6 +205,7 @@ class NewRootHomeHandler(tornado.web.RequestHandler):
         content = open("data/%s/%s" % (user_id, object_hash), "rb").read()
         self.finish(content)
 
+    @tornado.gen.coroutine
     def post(self):
         # object_hash = self.get_argument("hash")
         # user_id = self.get_argument("user_id")

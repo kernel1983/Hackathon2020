@@ -29,7 +29,7 @@ class Application(tornado.web.Application):
         handlers = [(r"/node", tree.NodeHandler),
                     (r"/leader", leader.LeaderHandler),
                     (r"/available_branches", AvailableBranchesHandler),
-                    (r"/get_chain", miner.GetChainHandler),
+                    (r"/get_highest_block", miner.GetHighestBlockHandler),
                     (r"/get_block", miner.GetBlockHandler),
                     (r"/get_node", GetNodeHandler),
                     (r"/disconnect", DisconnectHandler),
@@ -160,7 +160,6 @@ class DashboardHandler(tornado.web.RequestHandler):
         self.finish()
 
 def main():
-    database.main()
     tree.main()
     miner.main()
     # fs.main()

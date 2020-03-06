@@ -505,11 +505,12 @@ def main():
     parent_port = args.parent_port
     control_host = args.control_host
     control_port = args.control_port
+    database.main()
 
     # parser.add_argument('--pirvate_key', default=)
     # pirvate_key_file = args.pirvate_key
     node_sk = SigningKey.from_pem(open('data/pk/pk'+current_port).read())
-    tornado.ioloop.IOLoop.instance().call_later(int(current_port)-8000, connect)
+    # tornado.ioloop.IOLoop.instance().call_later(int(current_port)-8000, connect)
 
 if __name__ == '__main__':
     print("run python node.py pls")
