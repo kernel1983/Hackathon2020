@@ -161,7 +161,7 @@ class NewFileMetaHandler(tornado.web.RequestHandler):
             # need to cache those query to speed up
             while True:
                 # print("fetch chain", block_hash)
-                response = yield http_client.fetch("http://%s:%s/get_node?nodeid=%s" % (host, port, blob_bin[2:]))
+                response = yield http_client.fetch("http://%s:%s/get_node?nodeid=%s" % (host, port, blob_bin[2:]), request_timeout=300)
                 result = tornado.escape.json_decode(response.body)
                 print('result >>>>>', result)
                 host, port = result['address']

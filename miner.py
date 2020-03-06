@@ -189,6 +189,7 @@ def new_block(seq):
     except Exception as e:
         print("Error: %s" % e)
 
+    http_client = tornado.httpclient.AsyncHTTPClient()
     block_hash = prev_hash
     while block_hash != frozen_block_hash:
         block = database.connection.get("SELECT * FROM chain"+tree.current_port+" WHERE hash = %s", block_hash)
@@ -244,7 +245,10 @@ def get_chain(host, port):
                 print('block height', block['height'])
             block_hash = block['prev_hash']
             continue
-        response = yield http_client.fetch("http://%s:%s/get_block?hash=%s" % (host, port, block_hash))
+        try:
+            response = yield http_client.fetch("http://%s:%s/get_block?hash=%s" % (host, port, block_hash), request_timeout=300)
+        except:
+            continue
         result = tornado.escape.json_decode(response.body)
         block = result["block"]
         if block['height'] % 1000 == 0:
@@ -293,7 +297,8 @@ def main():
     #     recent_longest = longest
 
     for i in frozen_longest:
-        print("frozen_longest", i.height)
+        if i.height % 1000 == 0:
+            print("frozen_longest", i.height)
         data = tornado.escape.json_decode(i.data)
         frozen_nodes_in_chain.update(data.get("nodes", {}))
         if i.hash not in frozen_chain:
