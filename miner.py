@@ -72,10 +72,16 @@ def longest_chain(from_hash = '0'*64):
             longest = i
     return longest
 
+messages_out = []
+def looping():
+    global messages_out
+    while messages_out:
+        message = messages_out.pop(0)
+        print(message)
+        tree.forward(message)
+    tornado.ioloop.IOLoop.instance().call_later(1, looping)
 
 nonce = 0
-# nonce_interval = 0
-@tornado.gen.coroutine
 def mining():
     global nonce
     # global nonce_interval
@@ -83,72 +89,75 @@ def mining():
     global frozen_chain
     global frozen_nodes_in_chain
     global nodes_in_chain
+    global highest_block_hash
+    global messages_out
 
-    longest = longest_chain(frozen_block_hash)
-    if longest:
-        update_leader(longest)
-    if len(longest) > setting.FROZEN_BLOCK_NO:
-        frozen_block_hash = longest[-setting.FROZEN_BLOCK_NO].prev_hash
-        frozen_longest = longest[:-setting.FROZEN_BLOCK_NO]
-        recent_longest = longest[-setting.FROZEN_BLOCK_NO:]
-    else:
-        frozen_longest = []
-        recent_longest = longest
+    recent = []
+    prev_hash = highest_block_hash
+    for i in range(setting.ELECTION_WAIT+setting.LEADERS_NUM):
+        block = database.connection.get("SELECT * FROM chain"+tree.current_port+" WHERE hash = %s", prev_hash)
+        prev_hash = block['prev_hash']
+        recent.append(block)
 
-    for i in frozen_longest:
-        if i.height % 1000 == 0:
-            print("frozen_longest", i.height)
-        data = tornado.escape.json_decode(i.data)
-        frozen_nodes_in_chain.update(data.get("nodes", {}))
-        if i.hash not in frozen_chain:
-            frozen_chain.append(i.hash)
+    # longest = longest_chain(frozen_block_hash)
+    if recent:
+        update_leader(recent)
+    # if len(longest) > setting.FROZEN_BLOCK_NO:
+    #     frozen_block_hash = longest[-setting.FROZEN_BLOCK_NO].prev_hash
+    #     frozen_longest = longest[:-setting.FROZEN_BLOCK_NO]
+    #     recent_longest = longest[-setting.FROZEN_BLOCK_NO:]
+    # else:
+    #     frozen_longest = []
+    #     recent_longest = longest
 
-    nodes_in_chain = copy.copy(frozen_nodes_in_chain)
-    for i in recent_longest:
-        data = tornado.escape.json_decode(i.data)
-        # for j in data.get("nodes", {}):
-        #     print("recent_longest", i.height, j, data["nodes"][j])
-        nodes_in_chain.update(data.get("nodes", {}))
+    # for i in frozen_longest:
+    #     if i.height % 1000 == 0:
+    #         print("frozen_longest", i.height)
+    #     data = tornado.escape.json_decode(i.data)
+    #     frozen_nodes_in_chain.update(data.get("nodes", {}))
+    #     if i.hash not in frozen_chain:
+    #         frozen_chain.append(i.hash)
 
-    # nonce_interval = len(nodes_in_chain)
-    # if nonce == 0:
-    #     nonce = tree.nodeid2no(tree.current_nodeid)
-    # print(tree.current_port, 'nonce', nonce, 'nonce_interval', nonce_interval)
+    # nodes_in_chain = copy.copy(frozen_nodes_in_chain)
+    # for i in recent_longest:
+    #     data = tornado.escape.json_decode(i.data)
+    #     # for j in data.get("nodes", {}):
+    #     #     print("recent_longest", i.height, j, data["nodes"][j])
+    #     nodes_in_chain.update(data.get("nodes", {}))
 
-    if tree.current_nodeid not in nodes_in_chain and tree.parent_node_id_msg:
-        tree.forward(tree.parent_node_id_msg)
-        print(tree.current_port, 'parent_node_id_msg', tree.parent_node_id_msg)
+    # if tree.current_nodeid not in nodes_in_chain and tree.parent_node_id_msg:
+    #     tree.forward(tree.parent_node_id_msg)
+    #     print(tree.current_port, 'parent_node_id_msg', tree.parent_node_id_msg)
 
-    now = int(time.time())
-    last_synctime = now - now % setting.NETWORK_SPREADING_SECONDS - setting.NETWORK_SPREADING_SECONDS
-    nodes_to_update = {}
-    for nodeid in tree.nodes_pool:
-        if tree.nodes_pool[nodeid][1] < last_synctime:
-            if nodeid not in nodes_in_chain or nodes_in_chain[nodeid][1] < tree.nodes_pool[nodeid][1]:
-                print("nodes_to_update", nodeid, nodes_in_chain[nodeid][1], tree.nodes_pool[nodeid][1], last_synctime)
-                nodes_to_update[nodeid] = tree.nodes_pool[nodeid]
+    # now = int(time.time())
+    # last_synctime = now - now % setting.NETWORK_SPREADING_SECONDS - setting.NETWORK_SPREADING_SECONDS
+    # nodes_to_update = {}
+    # for nodeid in tree.nodes_pool:
+    #     if tree.nodes_pool[nodeid][1] < last_synctime:
+    #         if nodeid not in nodes_in_chain or nodes_in_chain[nodeid][1] < tree.nodes_pool[nodeid][1]:
+    #             print("nodes_to_update", nodeid, nodes_in_chain[nodeid][1], tree.nodes_pool[nodeid][1], last_synctime)
+    #             nodes_to_update[nodeid] = tree.nodes_pool[nodeid]
 
     # nodes_in_chain.update(tree.nodes_pool)
     # tree.nodes_pool = nodes_in_chain
     # print(tree.nodes_pool)
     # print(nodes_to_update)
 
-    # print(longest)
-    if longest:
-        prev_hash = longest[-1].hash
-        height = longest[-1].height
-        difficulty = longest[-1].difficulty
-        identity = longest[-1].identity
-        data = tornado.escape.json_decode(longest[-1].data)
-        recent = longest[-3:]
+    # print(recent)
+    if recent:
+        prev_hash = recent[0].hash
+        height = recent[0].height
+        difficulty = recent[0].difficulty
+        identity = recent[0].identity
+        data = tornado.escape.json_decode(recent[0].data)
         # print(recent)
-        if len(recent) * setting.BLOCK_INTERVAL_SECONDS > recent[-1].timestamp - recent[0].timestamp:
+        if len(recent) * setting.BLOCK_INTERVAL_SECONDS > recent[0].timestamp - recent[-1].timestamp:
             new_difficulty = min(255, difficulty + 1)
         else:
             new_difficulty = max(1, difficulty - 1)
         # print(tree.control_port, "new difficulty", new_difficulty, "height", height)
 
-        if "%s:%s"%(tree.current_host, tree.current_port) in [i.identity for i in longest[-6:]]:
+        if "%s:%s"%(tree.current_host, tree.current_port) in [i.identity for i in recent[-6:]]:
             # this is a good place to wake up leader by timestamp
             # tornado.ioloop.IOLoop.instance().call_later(1, mining)
             # return
@@ -158,7 +167,7 @@ def mining():
         prev_hash, height, difficulty, new_difficulty, data, identity = "0"*64, 0, 1, 1, {}, ""
 
     # data = {"nodes": {k:list(v) for k, v in tree.nodes_pool.items()}}
-    data["nodes"] = nodes_to_update
+    # data["nodes"] = nodes_to_update
     data_json = tornado.escape.json_encode(data)
 
     # new_identity = "%s@%s:%s" % (tree.current_nodeid, tree.current_host, tree.current_port)
@@ -167,11 +176,11 @@ def mining():
     for i in range(100):
         block_hash = hashlib.sha256((prev_hash + data_json + str(new_timestamp) + str(difficulty) + new_identity + str(nonce)).encode('utf8')).hexdigest()
         if int(block_hash, 16) < int("1" * (256-difficulty), 2):
-            if longest:
-                print(tree.current_port, 'height', height, 'nodeid', tree.current_nodeid, 'nonce_init', tree.nodeid2no(tree.current_nodeid), 'timecost', longest[-1].timestamp - longest[0].timestamp)
+            if recent:
+                print(tree.current_port, 'height', height, 'nodeid', tree.current_nodeid, 'nonce_init', tree.nodeid2no(tree.current_nodeid), 'timecost', recent[0].timestamp - recent[-1].timestamp)
 
             message = ["NEW_CHAIN_BLOCK", block_hash, prev_hash, height+1, nonce, new_difficulty, new_identity, data, new_timestamp, uuid.uuid4().hex]
-            tree.forward(message)
+            messages_out.append(message)
             # print(tree.current_port, "mining", nonce, block_hash)
             nonce = 0
             break
@@ -179,11 +188,12 @@ def mining():
         nonce += 1
         # nonce += nonce_interval
 
-    tornado.ioloop.IOLoop.instance().call_later(1, mining)
+    # tornado.ioloop.IOLoop.instance().call_later(1, mining)
 
 @tornado.gen.coroutine
 def new_block(seq):
     global frozen_block_hash
+    global highest_block_hash
     msg_header, block_hash, prev_hash, height, nonce, difficulty, identity, data, timestamp, msg_id = seq
 
     try:
@@ -194,9 +204,11 @@ def new_block(seq):
     # http_client = tornado.httpclient.AsyncHTTPClient()
     # block_hash = prev_hash
     # while block_hash != frozen_block_hash:
-    block = database.connection.get("SELECT * FROM chain"+tree.current_port+" WHERE hash = %s", prev_hash)
-    if not block:
+    prev_block = database.connection.get("SELECT * FROM chain"+tree.current_port+" WHERE hash = %s", prev_hash)
+    if not prev_block:
         chain_checking_work = True
+    if prev_hash == highest_block_hash:
+        highest_block_hash = block_hash
     #         if block['height'] % 1000 == 0:
     #             print('new block check height', block['height'])
     #         block_hash = block['prev_hash']
@@ -273,6 +285,9 @@ def get_chain(host, port):
         except Exception as e:
             print("Error: %s" % e)
 
+# def hello(world):
+#     print('hello', world)
+
 chain_checking_work = True
 def chain_checking():
     global frozen_block_hash
@@ -282,8 +297,11 @@ def chain_checking():
     global highest_block_hash
     global chain_checking_work
 
+    # tornado.ioloop.IOLoop.instance().add_callback(functools.partial(hello, 'world'))
+
     while True:
         if not chain_checking_work:
+            mining()
             time.sleep(1)
             continue
 
@@ -316,12 +334,11 @@ def chain_checking():
     # mining_task = tornado.ioloop.PeriodicCallback(mining, 1000) # , jitter=0.5
     # mining_task.start()
     # print(tree.current_port, "miner")
-    # tornado.ioloop.IOLoop.instance().call_later(1, mining)
 
 
-@tornado.gen.coroutine
+# @tornado.gen.coroutine
 def main():
-    pass
+    tornado.ioloop.IOLoop.instance().call_later(1, looping)
 
 if __name__ == '__main__':
     print("run python node.py pls")
