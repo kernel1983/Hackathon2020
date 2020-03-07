@@ -517,6 +517,7 @@ def main():
     # pirvate_key_file = args.pirvate_key
     node_sk = SigningKey.from_pem(open('data/pk/pk'+current_port).read())
     # tornado.ioloop.IOLoop.instance().call_later(int(current_port)-8000, connect)
+    tornado.ioloop.IOLoop.instance().add_callback(connect)
 
 if __name__ == '__main__':
     print("run python node.py pls")

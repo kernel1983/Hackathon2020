@@ -6,6 +6,7 @@ import subprocess
 import argparse
 import uuid
 import base64
+import threading
 
 import tornado.web
 # import tornado.websocket
@@ -66,6 +67,7 @@ class GetNodeHandler(tornado.web.RequestHandler):
         nodeid = self.get_argument("nodeid")
         target_nodeid = nodeid
         score = None
+        address = None
         # print(tree.current_port, tree.node_neighborhoods)
         for j in [tree.node_neighborhoods, tree.node_parents]:
             for i in j:
@@ -164,9 +166,14 @@ def main():
     miner.main()
     # fs.main()
 
+    chain_check = threading.Thread(target=miner.chain_checking)
+    chain_check.start()
+
     server = Application()
     server.listen(tree.current_port, '0.0.0.0')
     tornado.ioloop.IOLoop.instance().start()
+
+    chain_check.join()
 
 if __name__ == '__main__':
     main()

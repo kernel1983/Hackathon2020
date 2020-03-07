@@ -151,35 +151,24 @@ class NewFileMetaHandler(tornado.web.RequestHandler):
         body = '''{"type":"file","blobs":["fd1e1f7378afd9c5e18cb4198f81c9129c5c8d7e0df6dc151bc39ecc0165408d","e9d3ef5f981e371465af217e09d9dfbb6681845a21beb199e62bef433e0369cf"]}'''
         meta = tornado.escape.json_decode(body)
 
+        http_client = tornado.httpclient.AsyncHTTPClient()
         for blob in meta['blobs']:
             blob_bin = bin(int(blob, 16))
             print('>>>>>', blob, blob_bin[2:])
 
-            http_client = tornado.httpclient.AsyncHTTPClient()
             host, port = tree.current_host, tree.current_port
 
             # need to cache those query to speed up
+            prev_nodeid = None
             while True:
                 # print("fetch chain", block_hash)
                 response = yield http_client.fetch("http://%s:%s/get_node?nodeid=%s" % (host, port, blob_bin[2:]), request_timeout=300)
                 result = tornado.escape.json_decode(response.body)
                 print('result >>>>>', result)
                 host, port = result['address']
-                if result['nodeid'] == result['current_nodeid']:
+                if prev_nodeid == result['current_nodeid']:
                     break
-
-            # target_nodeid = tree.current_nodeid
-            # score = None
-            # # print(tree.current_port, tree.node_neighborhoods)
-            # for j in [tree.node_neighborhoods, tree.node_parents]:
-            #     for i in j:
-            #         new_score = tree.node_distance(blob_bin[2:], i)
-            #         if score is None or new_score < score:
-            #             score = new_score
-            #             target_nodeid = i
-            #             address = j[target_nodeid]
-            #         # print(i, new_score)
-            # print('>>>>>', target_nodeid, address)
+                prev_nodeid = result['current_nodeid']
 
     @tornado.gen.coroutine
     def post(self):
