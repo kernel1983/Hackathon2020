@@ -505,6 +505,12 @@ def main():
     parent_port = args.parent_port
     control_host = args.control_host
     control_port = args.control_port
+
+    if setting.BOOTSTRAP_BY_PORT_NO:
+        if int(current_port) > 8001:
+            no = int(current_port) - 8000
+            parent_port = (no >> 1) + 8000
+
     database.main()
 
     # parser.add_argument('--pirvate_key', default=)

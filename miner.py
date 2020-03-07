@@ -198,7 +198,7 @@ def new_block(seq):
                 print('block height', block['height'])
             block_hash = block['prev_hash']
             continue
-        response = yield http_client.fetch("http://%s:%s/get_block?hash=%s" % (host, port, block_hash))
+        response = yield http_client.fetch("http://%s:%s/get_block?hash=%s" % (tree.parent_host, tree.parent_port, block_hash))
         result = tornado.escape.json_decode(response.body)
         block = result["block"]
         if block['height'] % 1000 == 0:
@@ -283,9 +283,7 @@ def main():
     global nodes_in_chain
 
     if int(tree.current_port) > 8001:
-        no = int(tree.current_port) - 8000
-        port = (no >> 1) + 8000
-        yield get_chain(tree.parent_host, port)
+        yield get_chain(tree.parent_host, tree.parent_port)
 
     longest = longest_chain()
     if len(longest) >= setting.FROZEN_BLOCK_NO:
