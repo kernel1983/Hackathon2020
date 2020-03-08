@@ -24,7 +24,7 @@ import database
 frozen_block_hash = '0'*64
 frozen_chain = ['0'*64]
 frozen_nodes_in_chain = {}
-highest_block_hash = '0'*64
+highest_block_hash = None
 nodes_in_chain = {}
 def longest_chain(from_hash = '0'*64):
     roots = database.connection2.query("SELECT * FROM chain"+tree.current_port+" WHERE prev_hash = %s ORDER BY nonce", from_hash)
@@ -125,7 +125,7 @@ def mining():
     for nodeid in tree.nodes_pool:
         if tree.nodes_pool[nodeid][1] < last_synctime:
             if nodeid not in nodes_in_chain or nodes_in_chain[nodeid][1] < tree.nodes_pool[nodeid][1]:
-                print("nodes_to_update", nodeid, nodes_in_chain[nodeid][1], tree.nodes_pool[nodeid][1], last_synctime)
+                # print("nodes_to_update", nodeid, nodes_in_chain[nodeid][1], tree.nodes_pool[nodeid][1], last_synctime)
                 nodes_to_update[nodeid] = tree.nodes_pool[nodeid]
 
     # nodes_in_chain.update(tree.nodes_pool)
@@ -133,7 +133,7 @@ def mining():
     # print(tree.nodes_pool)
     # print(nodes_to_update)
 
-    # print(longest)
+    # print(frozen_block_hash, longest)
     if longest:
         prev_hash = longest[-1].hash
         height = longest[-1].height
@@ -155,14 +155,14 @@ def mining():
             pass
 
     else:
-        prev_hash, height, difficulty, new_difficulty, data, identity = "0"*64, 0, 1, 1, {}, ""
+        prev_hash, height, difficulty, new_difficulty, data, identity = '0'*64, 0, 1, 1, {}, ":"
 
     # data = {"nodes": {k:list(v) for k, v in tree.nodes_pool.items()}}
     data["nodes"] = nodes_to_update
     data_json = tornado.escape.json_encode(data)
 
     # new_identity = "%s@%s:%s" % (tree.current_nodeid, tree.current_host, tree.current_port)
-    new_identity = base64.b16encode(tree.node_sk.get_verifying_key().to_string()).decode("utf8")
+    new_identity = "%s:%s" % (tree.nodeid2no(tree.current_nodeid), base64.b32encode(tree.node_sk.get_verifying_key().to_string()).decode("utf8"))
     new_timestamp = time.time()
     for i in range(100):
         block_hash = hashlib.sha256((prev_hash + data_json + str(new_timestamp) + str(difficulty) + new_identity + str(nonce)).encode('utf8')).hexdigest()
@@ -181,7 +181,7 @@ def mining():
 @tornado.gen.coroutine
 def new_block(seq):
     global frozen_block_hash
-    global highest_block_hash
+    # global highest_block_hash
     msg_header, block_hash, prev_hash, height, nonce, difficulty, identity, data, timestamp, msg_id = seq
 
     try:
@@ -192,9 +192,10 @@ def new_block(seq):
     # http_client = tornado.httpclient.AsyncHTTPClient()
     # block_hash = prev_hash
     # while block_hash != frozen_block_hash:
-    prev_block = database.connection.get("SELECT * FROM chain"+tree.current_port+" WHERE hash = %s", prev_hash)
-    if not prev_block:
-        chain_checking_work = True
+    if prev_hash != '0'*64:
+        prev_block = database.connection.get("SELECT * FROM chain"+tree.current_port+" WHERE hash = %s", prev_hash)
+        if not prev_block:
+            chain_checking_work = True
 
     #         if block['height'] % 1000 == 0:
     #             print('new block check height', block['height'])
@@ -225,7 +226,7 @@ def update_leader(longest):
     # this method to wake up leader to work, is not as good as the timestamp way
 
     for i in longest[-setting.LEADERS_NUM-setting.ELECTION_WAIT:-setting.ELECTION_WAIT]:
-        if i.identity == "%s:%s"%(tree.current_host, tree.current_port):
+        if i.identity == "%s:%s" % (tree.nodeid2no(tree.current_nodeid), base64.b32encode(tree.node_sk.get_verifying_key().to_string()).decode("utf8")):
             leader.current_view = i.height
             break
 
@@ -248,7 +249,9 @@ class GetBlockHandler(tornado.web.RequestHandler):
 def get_chain(host, port):
     response = urllib.request.urlopen("http://%s:%s/get_highest_block" % (host, port))
     result = tornado.escape.json_decode(response.read())
-    block_hash = result['hash'] if result['hash'] else '0'*64
+    block_hash = result['hash']
+    if not block_hash:
+        return
     print("get highest block", block_hash)
     while block_hash != '0'*64:
         block = database.connection2.get("SELECT * FROM chain"+tree.current_port+" WHERE hash = %s", block_hash)
@@ -263,8 +266,8 @@ def get_chain(host, port):
             continue
         result = tornado.escape.json_decode(response.read())
         block = result["block"]
-        if block['height'] % 1000 == 0:
-            print("block fetch", block['height'])
+        # if block['height'] % 1000 == 0:
+        print("block fetch", block['height'])
         block_hash = block['prev_hash']
         try:
             database.connection2.execute("INSERT INTO chain"+tree.current_port+" (hash, prev_hash, height, nonce, difficulty, identity, timestamp, data) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
@@ -302,7 +305,9 @@ def chain_checking():
 
         if longest:
             highest_block_hash = longest[-1].hash
-            chain_checking_work = False
+        else:
+            highest_block_hash = '0'*64
+        chain_checking_work = False
 
         for i in frozen_longest:
             if i.height % 1000 == 0:

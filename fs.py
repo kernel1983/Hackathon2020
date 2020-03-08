@@ -82,7 +82,7 @@ class ActivateDefaultStoreHandler(tornado.web.RequestHandler):
         # timestamp = self.get_argument("timestamp")
         # signature = self.get_argument("signature")
         # print(user_id)
-        vk_bytes = base64.b16decode(user_id)
+        vk_bytes = base64.b32decode(user_id)
         # print(vk_bytes)
         vk = ecdsa.VerifyingKey.from_string(vk_bytes, curve=ecdsa.NIST256p)
 
