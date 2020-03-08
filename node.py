@@ -57,7 +57,7 @@ class AvailableBranchesHandler(tornado.web.RequestHandler):
     def get(self):
         branches = list(tree.available_branches)
 
-        # parent = tree.NodeConnector.parent_node:
+        # parent = tree.NodeConnector.node_parent:
         self.finish({"available_branches": branches,
                      #"parent": parent,
                      "nodeid": tree.current_nodeid})
@@ -84,9 +84,9 @@ class GetNodeHandler(tornado.web.RequestHandler):
 
 class DisconnectHandler(tornado.web.RequestHandler):
     def get(self):
-        if tree.NodeConnector.parent_node:
+        if tree.NodeConnector.node_parent:
             # connector.remove_node = False
-            tree.NodeConnector.parent_node.close()
+            tree.NodeConnector.node_parent.close()
 
         self.finish({})
         tornado.ioloop.IOLoop.instance().stop()
@@ -115,9 +115,9 @@ class DashboardHandler(tornado.web.RequestHandler):
 
         self.write("<br>pk: %s <br>" % base64.b32encode(tree.node_sk.get_verifying_key().to_string()).decode("utf8"))
         # sender = base64.b64encode(sender_vk.to_string()).decode("utf8")
-        self.write("<br>parent_node:<br>")
-        if tree.NodeConnector.parent_node:
-            self.write("%s:%s<br>" %(tree.NodeConnector.parent_node.host, tree.NodeConnector.parent_node.port))
+        self.write("<br>node_parent:<br>")
+        if tree.NodeConnector.node_parent:
+            self.write("%s:%s<br>" %(tree.NodeConnector.node_parent.host, tree.NodeConnector.node_parent.port))
 
         self.write("<br>node_parents:<br>")
         for nodeid in tree.node_parents:
@@ -156,6 +156,10 @@ class DashboardHandler(tornado.web.RequestHandler):
         for node in leader.LeaderConnector.leader_nodes:
             self.write("%s:%s<br>" %(node.host, node.port))
 
+        self.write("<br>recent longest:<br>")
+        for i in reversed(miner.recent_longest):
+            self.write("%s %s<br>" % (i['height'], i['hash']))
+
         self.write("<br>frozen chain:<br>")
         for i, h in enumerate(miner.frozen_chain):
             self.write("%s %s<br>" % (i, h))
@@ -166,14 +170,14 @@ def main():
     miner.main()
     # fs.main()
 
-    chain_check = threading.Thread(target=miner.chain_checking)
-    chain_check.start()
+    worker_thread = threading.Thread(target=miner.worker_thread)
+    worker_thread.start()
 
     server = Application()
     server.listen(tree.current_port, '0.0.0.0')
     tornado.ioloop.IOLoop.instance().start()
 
-    chain_check.join()
+    worker_thread.join()
 
 if __name__ == '__main__':
     main()

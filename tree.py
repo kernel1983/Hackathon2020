@@ -54,8 +54,8 @@ def forward(seq):
         # if not child_node.stream.closed:
         child_node.write_message(message)
 
-    if NodeConnector.parent_node:
-        NodeConnector.parent_node.conn.write_message(message)
+    if NodeConnector.node_parent:
+        NodeConnector.node_parent.conn.write_message(message)
 
 def nodeid2no(nodeid):
     if not nodeid:
@@ -227,7 +227,7 @@ class NodeHandler(tornado.websocket.WebSocketHandler):
 # connector to parent node
 class NodeConnector(object):
     """Websocket Client"""
-    parent_node = None
+    node_parent = None
 
     def __init__(self, to_host, to_port, branch):
         global node_sk
@@ -252,8 +252,8 @@ class NodeConnector(object):
                             )
 
     def close(self):
-        if NodeConnector.parent_node:
-            NodeConnector.parent_node = None
+        if NodeConnector.node_parent:
+            NodeConnector.node_parent = None
         self.conn.close()
 
     @tornado.gen.coroutine
@@ -262,8 +262,8 @@ class NodeConnector(object):
 
         try:
             self.conn = future.result()
-            if not NodeConnector.parent_node:
-                NodeConnector.parent_node = self
+            if not NodeConnector.node_parent:
+                NodeConnector.node_parent = self
 
             available_branches.add(tuple([current_host, current_port, self.branch+"0"]))
             available_branches.add(tuple([current_host, current_port, self.branch+"1"]))
@@ -468,7 +468,7 @@ def connect():
         tornado.websocket.websocket_connect("ws://%s:%s/control" % (control_host, control_port), callback=control_on_connect, on_message_callback=control_on_message)
 
     if setting.BOOTSTRAP_BY_PORT_NO:
-        if NodeConnector.parent_node:
+        if NodeConnector.node_parent:
             return
         if int(current_port) > 8001:
             no = int(current_port) - 8000
