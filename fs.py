@@ -97,13 +97,13 @@ class ActivateDefaultStoreHandler(tornado.web.RequestHandler):
 class NewFileMetaHandler(tornado.web.RequestHandler):
     @tornado.gen.coroutine
     def get(self):
-        body = '''{"type":"file","blobs":["fd1e1f7378afd9c5e18cb4198f81c9129c5c8d7e0df6dc151bc39ecc0165408d","e9d3ef5f981e371465af217e09d9dfbb6681845a21beb199e62bef433e0369cf"]}'''
+        body = '''{"type":"file","blobs":[["fd1e1f7378afd9c5e18cb4198f81c9129c5c8d7e0df6dc151bc39ecc0165408d"],["e9d3ef5f981e371465af217e09d9dfbb6681845a21beb199e62bef433e0369cf"]]}'''
         meta = tornado.escape.json_decode(body)
 
         http_client = tornado.httpclient.AsyncHTTPClient()
         for blob in meta['blobs']:
-            blob_bin = bin(int(blob, 16))
-            print('>>>>>', blob, blob_bin[2:])
+            blob_bin = bin(int(blob[0], 16))[2:].zfill(256)
+            print('>>>>>', blob, blob_bin)
 
             host, port = tree.current_host, tree.current_port
 
@@ -111,17 +111,50 @@ class NewFileMetaHandler(tornado.web.RequestHandler):
             prev_nodeid = None
             while True:
                 # print("fetch chain", block_hash)
-                response = yield http_client.fetch("http://%s:%s/get_node?nodeid=%s" % (host, port, blob_bin[2:]), request_timeout=300)
+                try:
+                    response = yield http_client.fetch("http://%s:%s/get_node?nodeid=%s" % (host, port, blob_bin), request_timeout=300)
+                except:
+                    blob.append(prev_nodeid)
+                    break
                 result = tornado.escape.json_decode(response.body)
-                print('result >>>>>', result)
                 host, port = result['address']
                 if prev_nodeid == result['current_nodeid']:
+                    blob.append(result['current_nodeid'])
                     break
+                print('result >>>>>', result)
                 prev_nodeid = result['current_nodeid']
+        self.finish(meta)
 
     @tornado.gen.coroutine
     def post(self):
-        print(tree.current_nodeid, len(self.request.body), self.request.body)
+        meta = tornado.escape.json_decode(self.request.body)
+
+        http_client = tornado.httpclient.AsyncHTTPClient()
+        for blob in meta['blobs']:
+            blob_bin = bin(int(blob[0], 16))[2:].zfill(256)
+            print('>>>>>', blob, blob_bin)
+
+            host, port = tree.current_host, tree.current_port
+
+            # need to cache those query to speed up
+            prev_nodeid = None
+            while True:
+                # print("fetch chain", block_hash)
+                try:
+                    response = yield http_client.fetch("http://%s:%s/get_node?nodeid=%s" % (host, port, blob_bin), request_timeout=300)
+                except:
+                    blob.append(prev_nodeid)
+                    break
+                result = tornado.escape.json_decode(response.body)
+                host, port = result['address']
+                if prev_nodeid == result['current_nodeid']:
+                    blob.append(result['current_nodeid'])
+                    break
+                print('result >>>>>', result)
+                prev_nodeid = result['current_nodeid']
+        self.finish(meta)
+
+        # print(tree.current_nodeid, len(self.request.body), self.request.body)
 
 class NewFileBlobHandler(tornado.web.RequestHandler):
     @tornado.gen.coroutine
@@ -131,17 +164,12 @@ class NewFileBlobHandler(tornado.web.RequestHandler):
 class NewRootHomeHandler(tornado.web.RequestHandler):
     @tornado.gen.coroutine
     def get(self):
-        object_hash = self.get_argument("hash")
-        user_id = self.get_argument("user_id")
-        timestamp = self.get_argument("timestamp")
-        signature = self.get_argument("signature")
+        body = '''{"type":"root_home","store_id":"","items":{"7z1805-x64.msi":"44decc5cd1513ae3b3fd7aabb7c7eb5e5dc57ee878a6b7178e8797c7364cfeaf","rustup-init.exe":"e40f2c826a3d87189b1393fbc541858f0a64854cac9a8b65c2328b6f80bb1396"},"owner":"someone's public key"}'''
+        meta = tornado.escape.json_decode(body)
+        # check all the metas kept
+        # check all the blobs in metas uploaded
 
-        vk = keys.UmbralPublicKey.from_bytes(bytes.fromhex(str(user_id)))
-        sig = signing.Signature.from_bytes(bytes.fromhex(str(signature)))
-        assert sig.verify((object_hash+timestamp).encode("utf8"), vk)
-
-        content = open("data/%s/%s" % (user_id, object_hash), "rb").read()
-        self.finish(content)
+        self.finish()
 
     @tornado.gen.coroutine
     def post(self):

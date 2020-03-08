@@ -35,18 +35,18 @@ function createWindow() {
   })
 
   ipcMain.on('folder_load', (event) => {
-    if (root_folder_hash_from_blockchain) {
-      var root_folder_meta = get_meta(root_folder_hash_from_blockchain)
-      event.reply('file_added', root_folder_meta)
+    if (root_home_hash_from_blockchain) {
+      var root_home_meta = get_meta(root_home_hash_from_blockchain)
+      event.reply('file_added', root_home_meta)
     } else {
-      var root_folder_meta = {
-        "type": "root_folder",
+      var root_home_meta = {
+        "type": "root_home",
         "store_id": "",
         "items": {},
         "owner": "someone's public key"
       }
-      root_folder_hash_from_blockchain = put_meta(root_folder_meta)
-      fs.writeFileSync('data/root_folder', root_folder_hash_from_blockchain)
+      root_home_hash_from_blockchain = put_meta(root_home_meta)
+      fs.writeFileSync('data/root_home', root_home_hash_from_blockchain)
     }
   })
 
@@ -81,56 +81,81 @@ function createWindow() {
     var file_meta = {
       'type': 'file',
       // 'filename': filename,
-      'blobs': hashes
+      'blobs': hashes.map(i => [i])
     }
-    const file_meta_hash = put_meta(file_meta)
+    const file_meta_in_json = JSON.stringify(file_meta)
     console.log(tree.root())
     console.log(tree.level(0))
-
-    var root_folder_meta = get_meta(root_folder_hash_from_blockchain)
-    root_folder_meta["items"][filename] = file_meta_hash
-    root_folder_hash_from_blockchain = put_meta(root_folder_meta)
-    if (fs.existsSync('data/root_folder')) {
-      const t = new Date()
-      fs.renameSync('data/root_folder', 'data/root_folder_' + t.getTime())
-    }
-    fs.writeFileSync('data/root_folder', root_folder_hash_from_blockchain)
-
-    const data_in_json = JSON.stringify({
-      message:{
-        msgid: uuid(),
-        sender: sender.getPublic().encode('hex'),
-        receiver: '8c48e76e-1471-42e5-a2dd-9eb1347ded03',
-        timestamp: (new Date()).getTime()/1000,
-        type: 'file_store',
-        root_folder: root_folder_hash_from_blockchain
-      },
-      signature: 's'
-    })
     var request = http.request({
-      host: '127.0.0.1',
-      port: 8001,
-      path: '/new_msg',
+      host: '192.168.199.127',
+      port: 8005,
+      path: '/fs/new_file_meta',
       method: 'POST',
       headers:{
         'content-type':'application/json',
-        'content-length':data_in_json.length
+        'content-length':file_meta_in_json.length
       }
     }, function(res) {
-      console.log("statusCode: ", res.statusCode)
-      console.log("headers: ", res.headers)
+      // console.log("statusCode: ", res.statusCode)
+      // console.log("headers: ", res.headers)
       var _data=''
       res.on('data', function(chunk){
         _data += chunk
       })
       res.on('end', function(){
-        console.log("\n--->>\nresult:", _data)
+        // console.log("\n--->>\nresult:", _data)
+        const file_meta_hash = put_meta_json(_data)
+
+        var root_home_meta = get_meta(root_home_hash_from_blockchain)
+        root_home_meta["items"][filename] = file_meta_hash
+        root_home_hash_from_blockchain = put_meta(root_home_meta)
+        if (fs.existsSync('data/root_home')) {
+          const t = new Date()
+          fs.renameSync('data/root_home', 'data/root_home_' + t.getTime())
+        }
+        fs.writeFileSync('data/root_home', root_home_hash_from_blockchain)
+    
+        const data_in_json = JSON.stringify({
+          message:{
+            msgid: uuid(),
+            sender: sender.getPublic().encode('hex'),
+            receiver: '8c48e76e-1471-42e5-a2dd-9eb1347ded03',
+            timestamp: (new Date()).getTime()/1000,
+            type: 'file_store',
+            root_home: root_home_hash_from_blockchain
+          },
+          signature: 's'
+        })
+        // var request = http.request({
+        //   host: '127.0.0.1',
+        //   port: 8001,
+        //   path: '/new_msg',
+        //   method: 'POST',
+        //   headers:{
+        //     'content-type':'application/json',
+        //     'content-length':data_in_json.length
+        //   }
+        // }, function(res) {
+        //   console.log("statusCode: ", res.statusCode)
+        //   console.log("headers: ", res.headers)
+        //   var _data=''
+        //   res.on('data', function(chunk){
+        //     _data += chunk
+        //   })
+        //   res.on('end', function(){
+        //     console.log("\n--->>\nresult:", _data)
+        //   })
+        // })
+        // request.write(data_in_json)
+        // request.end()
+    
+        event.reply('file_added', root_home_meta)
+    
+
       })
     })
-    request.write(data_in_json)
+    request.write(file_meta_in_json)
     request.end()
-
-    event.reply('file_added', root_folder_meta)
   })
 
   ipcMain.on('file_retrive', (event, filename, file_meta_hash) => {
@@ -229,12 +254,12 @@ function createWindow() {
 
 }
 
-var root_folder_hash_from_blockchain
-if (fs.existsSync('data/root_folder')) {
-  const root_folder_hash_buffer = fs.readFileSync('data/root_folder')
-  root_folder_hash_from_blockchain = root_folder_hash_buffer.toString()
+var root_home_hash_from_blockchain
+if (fs.existsSync('data/root_home')) {
+  const root_home_hash_buffer = fs.readFileSync('data/root_home')
+  root_home_hash_from_blockchain = root_home_hash_buffer.toString()
 } else {
-  root_folder_hash_from_blockchain = null
+  root_home_hash_from_blockchain = null
 }
 
 var sender
@@ -308,7 +333,14 @@ function put_meta(obj) {
   const meta_hash = shajs('sha256').update(meta_json).digest('hex')
   fs.writeFileSync('data/metas/' + meta_hash, meta_json)
   console.log('meta_hash', meta_hash)
-  console.log(obj)
+  console.log(meta_json)
   return meta_hash
 }
 
+function put_meta_json(meta_json) {
+  const meta_hash = shajs('sha256').update(meta_json).digest('hex')
+  fs.writeFileSync('data/metas/' + meta_hash, meta_json)
+  console.log('meta_hash', meta_hash)
+  console.log(meta_json)
+  return meta_hash
+}
