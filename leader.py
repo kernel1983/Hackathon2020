@@ -22,7 +22,6 @@ from ecdsa.util import string_to_number
 certain_value = "0"
 certain_value = certain_value + 'f'*(64-len(certain_value))
 
-# working = False
 system_view = None
 current_view = None
 current_view_no = 0
@@ -203,7 +202,7 @@ class LeaderHandler(tornado.websocket.WebSocketHandler):
     def open(self):
         self.from_host = self.get_argument("host")
         self.from_port = self.get_argument("port")
-        self.from_id = self.get_argument("id")
+        self.from_no = int(self.get_argument("no"))
         self.from_pk = self.get_argument("pk")
         # self.remove_node = True
         # if False: #temp disable force disconnect
@@ -287,30 +286,31 @@ class LeaderConnector(object):
     """Websocket Client"""
     leader_nodes = set()
 
-    def __init__(self, nodeid, nodepk):
-        self.id = nodeid
-        self.pk = nodepk
+    def __init__(self, no, pk):
+        self.no = no
+        self.pk = pk
         self.probe()
 
     @tornado.gen.coroutine
     def probe(self):
         http_client = tornado.httpclient.AsyncHTTPClient()
         host, port = tree.current_host, tree.current_port
+        nodeid = tree.nodeno2id(int(self.no))
         while True:
-            print('======', self.id, self.pk)
+            # print('======', self.no, self.pk)
             try:
-                response = yield http_client.fetch("http://%s:%s/get_node?nodeid=%s" % (host, port, self.id), request_timeout=300)
+                response = yield http_client.fetch("http://%s:%s/get_node?nodeid=%s" % (host, port, nodeid), request_timeout=300)
             except:
                 break
             result = tornado.escape.json_decode(response.body)
             host, port = result['address']
-            if self.id == result['current_nodeid']:
+            if nodeid == result['current_nodeid']:
                 break
-            print('result >>>>>', result)
+            # print('result >>>>>', result)
 
         self.host = host
         self.port = port
-        self.ws_uri = "ws://%s:%s/leader?host=%s&port=%s&id=%s&pk=%s" % (self.host, self.port, tree.current_host, tree.current_port, self.id, self.pk)
+        self.ws_uri = "ws://%s:%s/leader?host=%s&port=%s&no=%s&pk=%s" % (self.host, self.port, tree.current_host, tree.current_port, self.no, self.pk)
         # self.branch = None
         self.remove_node = False
         self.conn = None
@@ -403,23 +403,36 @@ class LeaderConnector(object):
 
 messages = []
 locked_accounts = set()
-# block_to_confirm = {}
-# block_to_reply = {}
 # @tornado.gen.coroutine
 def mining():
-    # global working
     global messages
     global locked_accounts
     global current_view_no
     global view_transactions
     global leader_connector_new
+    global current_leaders
 
-    tornado.ioloop.IOLoop.instance().call_later(0.1, mining)
+    tornado.ioloop.IOLoop.instance().call_later(1, mining)
     if leader_connector_new:
         leader_info = leader_connector_new.pop(0)
         LeaderConnector(*leader_info)
-    # if not working:
-    #     return
+
+    nodes_to_close = set()
+    # print(tree.current_port, "current leaders", current_leaders)
+    for node in LeaderConnector.leader_nodes:
+        if (str(node.no), node.pk) not in current_leaders:
+            nodes_to_close.add(node)
+    # print(tree.current_port, "nodes_to_close", len(nodes_to_close))
+    while nodes_to_close:
+        nodes_to_close.pop().close()
+
+    nodeno = str(tree.nodeid2no(tree.current_nodeid))
+    nodepk = base64.b32encode(tree.node_sk.get_verifying_key().to_string()).decode("utf8")
+    if (nodeno, nodepk) not in current_leaders:
+        messages = []
+        while LeaderHandler.leader_nodes:
+            LeaderHandler.leader_nodes.pop().close()
+
     if current_view is None:
         return
 
@@ -487,7 +500,6 @@ leader_connector_new = []
 def update(leaders):
     global current_leaders
     global previous_leaders
-    # global working
     global messages
     global leader_connector_new
 
@@ -496,36 +508,16 @@ def update(leaders):
     nodepk = base64.b32encode(tree.node_sk.get_verifying_key().to_string()).decode("utf8")
     # print(tree.current_port, nodeno, pk)
     # print(tree.current_port, leaders, previous_leaders)
-    if (nodeno, nodepk) in leaders - previous_leaders:
+    if (nodeno, nodepk) in current_leaders - previous_leaders:
         for no, pk in leaders:
-            connected = set([(i.id, i.pk) for i in LeaderConnector.leader_nodes]) |\
-                        set([(i.from_id, i.from_pk) for i in LeaderHandler.leader_nodes]) |\
+            connected = set([(i.no, i.pk) for i in LeaderConnector.leader_nodes]) |\
+                        set([(i.from_no, i.from_pk) for i in LeaderHandler.leader_nodes]) |\
                         set([(nodeno, nodepk)])
             # print(tree.current_port, connected)
             if (no, pk) not in connected:
-                nodeid = tree.nodeno2id(int(no))
+                # nodeid = tree.nodeno2id(int(no))
                 # print(tree.current_port, other_leader_addr, connected)
-                leader_connector_new.append((nodeid, pk))
-
-        # if not working:
-        #     tornado.ioloop.IOLoop.instance().add_callback(mining)
-        #     working = True
-
-    nodes_to_close = set()
-    for node in LeaderConnector.leader_nodes:
-        if (node.id, node.pk) not in leaders:
-            nodes_to_close.add(node)
-
-    # print(tree.current_port, "nodes_to_close", len(nodes_to_close))
-    # while nodes_to_close:
-    #     nodes_to_close.pop().close()
-
-    if (nodeno, nodepk) not in leaders:
-        # working = False
-        messages = []
-
-        # while LeaderConnector.leader_nodes:
-        #     LeaderConnector.leader_nodes.pop().close()
+                leader_connector_new.append((no, pk))
 
     previous_leaders = leaders
 

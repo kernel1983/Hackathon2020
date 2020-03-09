@@ -121,7 +121,7 @@ class NewFileMetaHandler(tornado.web.RequestHandler):
                 if prev_nodeid == result['current_nodeid']:
                     blob.append(result['current_nodeid'])
                     break
-                print('result >>>>>', result)
+                # print('result >>>>>', result)
                 prev_nodeid = result['current_nodeid']
         self.finish(meta)
 
@@ -150,7 +150,7 @@ class NewFileMetaHandler(tornado.web.RequestHandler):
                 if prev_nodeid == result['current_nodeid']:
                     blob.append(result['current_nodeid'])
                     break
-                print('result >>>>>', result)
+                # print('result >>>>>', result)
                 prev_nodeid = result['current_nodeid']
         self.finish(meta)
 

@@ -80,10 +80,12 @@ def looping():
         tree.forward(message)
     tornado.ioloop.IOLoop.instance().call_later(1, looping)
 
+nodes_to_fetch = []
 @tornado.gen.coroutine
 def new_block(seq):
     global frozen_block_hash
     global recent_longest
+    global nodes_to_fetch
     msg_header, block_hash, prev_hash, height, nonce, difficulty, identity, data, timestamp, msg_id = seq
 
     try:
@@ -94,6 +96,8 @@ def new_block(seq):
     if prev_hash != '0'*64:
         prev_block = database.connection.get("SELECT * FROM chain"+tree.current_port+" WHERE hash = %s", prev_hash)
         if not prev_block:
+            no, pk = identity.split(":")
+            nodes_to_fetch.append(tree.nodeno2id(int(no)))
             worker_thread_mining = False
 
     if recent_longest:
@@ -132,7 +136,20 @@ class GetBlockHandler(tornado.web.RequestHandler):
         self.finish({"block": block})
 
 
-def fetch_chain(host, port):
+def fetch_chain(nodeid):
+    host, port = tree.current_host, tree.current_port
+    while True:
+        try:
+            # response = yield http_client.fetch("http://%s:%s/get_node?nodeid=%s" % (host, port, nodeid), request_timeout=300)
+            response = urllib.request.urlopen("http://%s:%s/get_node?nodeid=%s" % (host, port, nodeid))
+        except:
+            break
+        result = tornado.escape.json_decode(response.read())
+        host, port = result['address']
+        if result['nodeid'] == result['current_nodeid']:
+            break
+        print('result >>>>>', result)
+
     try:
         response = urllib.request.urlopen("http://%s:%s/get_highest_block" % (host, port))
     except:
@@ -236,11 +253,12 @@ def mining():
             new_difficulty = max(1, difficulty - 1)
         # print(tree.control_port, "new difficulty", new_difficulty, "height", height)
 
+        # print("%s:%s" % (nodeno, pk))
         if "%s:%s" % (nodeno, pk) in [i.identity for i in longest[-6:]]:
             # this is a good place to wake up leader by timestamp
             # tornado.ioloop.IOLoop.instance().call_later(1, mining)
+            # print([i.identity for i in longest[-6:]])
             return
-            # pass
 
     else:
         prev_hash, height, difficulty, new_difficulty, data, identity = '0'*64, 0, 1, 1, {}, ":"
@@ -274,6 +292,7 @@ def worker_thread():
     global nodes_in_chain
     global highest_block_hash
     global worker_thread_mining
+    global nodes_to_fetch
 
     while True:
         if worker_thread_mining:
@@ -281,9 +300,14 @@ def worker_thread():
             time.sleep(1)
             continue
 
-        print('chain checking')
+        if tree.current_nodeid is None:
+            continue
+        print('chain validation')
         if int(tree.current_port) > 8001:
-            fetch_chain(tree.parent_host, tree.parent_port)
+            fetch_chain(tree.current_nodeid[:-1])
+        while nodes_to_fetch:
+            nodeid = nodes_to_fetch.pop(0)
+            fetch_chain(nodeid)
 
         longest = longest_chain()
         if len(longest) >= setting.FROZEN_BLOCK_NO:

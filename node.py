@@ -67,7 +67,7 @@ class GetNodeHandler(tornado.web.RequestHandler):
         nodeid = self.get_argument("nodeid")
         target_nodeid = nodeid
         score = None
-        address = None
+        address = [tree.current_host, tree.current_port]
         # print(tree.current_port, tree.node_neighborhoods)
         for j in [tree.node_neighborhoods, tree.node_parents]:
             for i in j:
