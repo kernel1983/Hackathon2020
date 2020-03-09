@@ -158,7 +158,7 @@ class DashboardHandler(tornado.web.RequestHandler):
 
         self.write("<br>recent longest:<br>")
         for i in reversed(miner.recent_longest):
-            self.write("%s %s<br>" % (i['height'], i['hash']))
+            self.write("%s %s %s<br>" % (i['height'], i['hash'], i['identity']))
 
         self.write("<br>frozen chain:<br>")
         for i, h in enumerate(miner.frozen_chain):
@@ -167,7 +167,13 @@ class DashboardHandler(tornado.web.RequestHandler):
 
 def main():
     tree.main()
-    miner.main()
+
+    # miner.main()
+    tornado.ioloop.IOLoop.instance().call_later(1, miner.looping)
+
+    # leader.main()
+    tornado.ioloop.IOLoop.instance().call_later(1, leader.mining)
+
     # fs.main()
 
     worker_thread = threading.Thread(target=miner.worker_thread)

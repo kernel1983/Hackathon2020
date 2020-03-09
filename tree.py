@@ -1,5 +1,6 @@
 from __future__ import print_function
 
+import math
 import time
 import socket
 import subprocess
@@ -61,6 +62,12 @@ def nodeid2no(nodeid):
     if not nodeid:
         return 1
     return 2**len(str(nodeid)) + int(nodeid, 2)
+
+def nodeno2id(nodeno):
+    if nodeno < 2:
+        return ''
+    no = int(math.log(nodeno, 2))
+    return bin(nodeno - 2**no)[2:].zfill(no)
 
 def node_distance(a, b):
     if len(a) > len(b):

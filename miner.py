@@ -83,6 +83,7 @@ def looping():
 @tornado.gen.coroutine
 def new_block(seq):
     global frozen_block_hash
+    global recent_longest
     msg_header, block_hash, prev_hash, height, nonce, difficulty, identity, data, timestamp, msg_id = seq
 
     try:
@@ -95,20 +96,23 @@ def new_block(seq):
         if not prev_block:
             worker_thread_mining = False
 
-    # longest = longest_chain(frozen_block_hash)
-    # if longest:
-    #     update_leader(longest)
+    if recent_longest:
+        update_leader(recent_longest)
 
     print(tree.current_port, "current view", leader.current_view, "system view", leader.system_view)
 
 def update_leader(longest):
+    # print([i.identity for i in longest[-setting.LEADERS_NUM-setting.ELECTION_WAIT:-setting.ELECTION_WAIT]])
     height = longest[-1].height
     leaders = set([tuple(i.identity.split(":")) for i in longest[-setting.LEADERS_NUM-setting.ELECTION_WAIT:-setting.ELECTION_WAIT]])
+    # print(leaders)
     leader.update(leaders)
     # this method to wake up leader to work, is not as good as the timestamp way
 
+    nodeno = str(tree.nodeid2no(tree.current_nodeid))
+    pk = base64.b32encode(tree.node_sk.get_verifying_key().to_string()).decode("utf8")
     for i in longest[-setting.LEADERS_NUM-setting.ELECTION_WAIT:-setting.ELECTION_WAIT]:
-        if i.identity == "%s:%s" % (tree.nodeid2no(tree.current_nodeid), base64.b32encode(tree.node_sk.get_verifying_key().to_string()).decode("utf8")):
+        if i.identity == "%s:%s" % (nodeno, pk):
             leader.current_view = i.height
             break
 
@@ -152,7 +156,7 @@ def fetch_chain(host, port):
         result = tornado.escape.json_decode(response.read())
         block = result["block"]
         # if block['height'] % 1000 == 0:
-        print("block fetch", block['height'])
+        print("fetch block", block['height'])
         block_hash = block['prev_hash']
         try:
             database.connection2.execute("INSERT INTO chain"+tree.current_port+" (hash, prev_hash, height, nonce, difficulty, identity, timestamp, data) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
@@ -184,7 +188,7 @@ def mining():
         recent_longest = longest
 
     for i in frozen_longest:
-        print("frozen_longest", i.height)
+        print("frozen longest", i.height)
         data = tornado.escape.json_decode(i.data)
         frozen_nodes_in_chain.update(data.get("nodes", {}))
         if i.hash not in frozen_chain:
@@ -216,6 +220,8 @@ def mining():
     # print(nodes_to_update)
 
     # print(frozen_block_hash, longest)
+    nodeno = str(tree.nodeid2no(tree.current_nodeid))
+    pk = base64.b32encode(tree.node_sk.get_verifying_key().to_string()).decode("utf8")
     if longest:
         prev_hash = longest[-1].hash
         height = longest[-1].height
@@ -230,11 +236,11 @@ def mining():
             new_difficulty = max(1, difficulty - 1)
         # print(tree.control_port, "new difficulty", new_difficulty, "height", height)
 
-        if "%s:%s"%(tree.current_host, tree.current_port) in [i.identity for i in longest[-6:]]:
+        if "%s:%s" % (nodeno, pk) in [i.identity for i in longest[-6:]]:
             # this is a good place to wake up leader by timestamp
             # tornado.ioloop.IOLoop.instance().call_later(1, mining)
-            # return
-            pass
+            return
+            # pass
 
     else:
         prev_hash, height, difficulty, new_difficulty, data, identity = '0'*64, 0, 1, 1, {}, ":"
@@ -244,7 +250,7 @@ def mining():
     data_json = tornado.escape.json_encode(data)
 
     # new_identity = "%s@%s:%s" % (tree.current_nodeid, tree.current_host, tree.current_port)
-    new_identity = "%s:%s" % (tree.nodeid2no(tree.current_nodeid), base64.b32encode(tree.node_sk.get_verifying_key().to_string()).decode("utf8"))
+    new_identity = "%s:%s" % (nodeno, pk)
     new_timestamp = time.time()
     for i in range(100):
         block_hash = hashlib.sha256((prev_hash + data_json + str(new_timestamp) + str(difficulty) + new_identity + str(nonce)).encode('utf8')).hexdigest()
@@ -309,8 +315,8 @@ def worker_thread():
 
 
 # @tornado.gen.coroutine
-def main():
-    tornado.ioloop.IOLoop.instance().call_later(1, looping)
+# def main():
+#     tornado.ioloop.IOLoop.instance().call_later(1, looping)
 
 if __name__ == '__main__':
     print("run python node.py pls")
