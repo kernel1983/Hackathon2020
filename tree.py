@@ -242,6 +242,7 @@ class NodeConnector(object):
         self.port = to_port
         self.branch = branch
         self.pk = node_sk.get_verifying_key().to_string()
+
         # print(self.pk.decode("utf8"))
         # print(b"%s%s%s%s" % (self.branch.encode("utf8"), current_host.encode("utf8"), current_port.encode("utf8"), self.pk))
         sig = node_sk.sign(b"%s%s%s%s" % (self.branch.encode("utf8"), current_host.encode("utf8"), current_port.encode("utf8"), self.pk))
@@ -382,7 +383,8 @@ class NodeConnector(object):
 
         elif seq[0] == "NEW_TX":
             txid = seq[1]["transaction"]["txid"]
-            if (current_host, current_port) in leader.current_leaders and txid not in processed_message_ids:
+            # if (current_host, current_port) in leader.current_leaders and txid not in processed_message_ids:
+            if txid not in processed_message_ids:
                 processed_message_ids.add(txid)
                 leader.messages.append(seq)
                 # print(current_port, "tx msg", seq)
@@ -394,7 +396,8 @@ class NodeConnector(object):
 
         elif seq[0] == "NEW_MSG":
             msgid = seq[1]["message"]["msgid"]
-            if (current_host, current_port) in leader.current_leaders and msgid not in processed_message_ids:
+            # if (current_host, current_port) in leader.current_leaders and msgid not in processed_message_ids:
+            if msgid not in processed_message_ids:
                 processed_message_ids.add(msgid)
                 leader.messages.append(seq)
 

@@ -37,8 +37,9 @@ class GetChatHandler(tornado.web.RequestHandler):
 
 class NewMsgHandler(tornado.web.RequestHandler):
     def get(self):
+        nodepk = base64.b16encode(tree.node_sk.get_verifying_key().to_string()).decode("utf8")
         msg = {
-            "message":{"msgid":uuid.uuid4().hex, "sender":"1", "receiver":"2", "timestamp":"3"},
+            "message":{"msgid":uuid.uuid4().hex, "sender":nodepk, "receiver":nodepk, "timestamp": time.time()},
             "signature": "4"
         }
 

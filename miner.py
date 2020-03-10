@@ -28,7 +28,7 @@ highest_block_hash = None
 recent_longest = []
 nodes_in_chain = {}
 def longest_chain(from_hash = '0'*64):
-    roots = database.connection2.query("SELECT * FROM chain"+tree.current_port+" WHERE prev_hash = %s ORDER BY nonce", from_hash)
+    roots = database.connection_thread.query("SELECT * FROM chain"+tree.current_port+" WHERE prev_hash = %s ORDER BY nonce", from_hash)
 
     chains = []
     prev_hashs = []
@@ -45,7 +45,7 @@ def longest_chain(from_hash = '0'*64):
         else:
             break
 
-        leaves = database.connection2.query("SELECT * FROM chain"+tree.current_port+" WHERE prev_hash = %s ORDER BY nonce", prev_hash)
+        leaves = database.connection_thread.query("SELECT * FROM chain"+tree.current_port+" WHERE prev_hash = %s ORDER BY nonce", prev_hash)
         n += 1
         if len(leaves) > 0:
             if leaves[0]['height'] % 1000 == 0:
@@ -75,16 +75,21 @@ def longest_chain(from_hash = '0'*64):
 messages_out = []
 def looping():
     global messages_out
+    global recent_longest
+
     while messages_out:
         message = messages_out.pop(0)
         tree.forward(message)
+
+    if recent_longest:
+        update_leader(recent_longest)
+
     tornado.ioloop.IOLoop.instance().call_later(1, looping)
 
 nodes_to_fetch = []
 @tornado.gen.coroutine
 def new_block(seq):
     global frozen_block_hash
-    global recent_longest
     global nodes_to_fetch
     msg_header, block_hash, prev_hash, height, nonce, difficulty, identity, data, timestamp, msg_id = seq
 
@@ -100,29 +105,22 @@ def new_block(seq):
             nodes_to_fetch.append(tree.nodeno2id(int(no)))
             worker_thread_mining = False
 
-    if recent_longest:
-        update_leader(recent_longest)
-
-    print(tree.current_port, "current view", leader.current_view, "system view", leader.system_view)
-
 def update_leader(longest):
     # print([i.identity for i in longest[-setting.LEADERS_NUM-setting.ELECTION_WAIT:-setting.ELECTION_WAIT]])
-    height = longest[-1].height
-    leaders = set([tuple(i.identity.split(":")) for i in longest[-setting.LEADERS_NUM-setting.ELECTION_WAIT:-setting.ELECTION_WAIT]])
+    leaders = [i for i in longest if i['timestamp'] < time.time()-setting.MAX_MESSAGE_DELAY_SECONDS][-setting.LEADERS_NUM:]
+    leader.system_view = longest[-1].height
     # print(leaders)
-    leader.update(leaders)
+    leader.update([tuple(i.identity.split(":")) for i in leaders])
     # this method to wake up leader to work, is not as good as the timestamp way
 
     nodeno = str(tree.nodeid2no(tree.current_nodeid))
     pk = base64.b32encode(tree.node_sk.get_verifying_key().to_string()).decode("utf8")
-    for i in longest[-setting.LEADERS_NUM-setting.ELECTION_WAIT:-setting.ELECTION_WAIT]:
+    for i in leaders:
         if i.identity == "%s:%s" % (nodeno, pk):
             leader.current_view = i.height
             break
 
-    if height - (setting.LEADERS_NUM+setting.ELECTION_WAIT-1) > 0:
-        leader.system_view = height - (setting.LEADERS_NUM+setting.ELECTION_WAIT-1)
-
+    # print(tree.current_port, "current view", leader.current_view, "system view", leader.system_view)
 
 class GetHighestBlockHandler(tornado.web.RequestHandler):
     def get(self):
@@ -137,10 +135,10 @@ class GetBlockHandler(tornado.web.RequestHandler):
 
 
 def fetch_chain(nodeid):
+    print(tree.current_nodeid, 'fetch chain', nodeid)
     host, port = tree.current_host, tree.current_port
     while True:
         try:
-            # response = yield http_client.fetch("http://%s:%s/get_node?nodeid=%s" % (host, port, nodeid), request_timeout=300)
             response = urllib.request.urlopen("http://%s:%s/get_node?nodeid=%s" % (host, port, nodeid))
         except:
             break
@@ -148,7 +146,7 @@ def fetch_chain(nodeid):
         host, port = result['address']
         if result['nodeid'] == result['current_nodeid']:
             break
-        print('result >>>>>', result)
+        # print('result >>>>>', result)
 
     try:
         response = urllib.request.urlopen("http://%s:%s/get_highest_block" % (host, port))
@@ -160,7 +158,7 @@ def fetch_chain(nodeid):
         return
     print("get highest block", block_hash)
     while block_hash != '0'*64:
-        block = database.connection2.get("SELECT * FROM chain"+tree.current_port+" WHERE hash = %s", block_hash)
+        block = database.connection_thread.get("SELECT * FROM chain"+tree.current_port+" WHERE hash = %s", block_hash)
         if block:
             if block['height'] % 1000 == 0:
                 print('block height', block['height'])
@@ -176,7 +174,7 @@ def fetch_chain(nodeid):
         print("fetch block", block['height'])
         block_hash = block['prev_hash']
         try:
-            database.connection2.execute("INSERT INTO chain"+tree.current_port+" (hash, prev_hash, height, nonce, difficulty, identity, timestamp, data) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+            database.connection_thread.execute("INSERT INTO chain"+tree.current_port+" (hash, prev_hash, height, nonce, difficulty, identity, timestamp, data) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
                 block["hash"], block["prev_hash"], block["height"], block["nonce"], block["difficulty"], block["identity"], block["timestamp"], block["data"])
         except Exception as e:
             print("Error: %s" % e)

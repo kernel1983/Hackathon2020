@@ -3,7 +3,7 @@ import torndb
 import tree
 
 connection = torndb.Connection("127.0.0.1", "nodes", user="root", password="root")
-connection2 = torndb.Connection("127.0.0.1", "nodes", user="root", password="root")
+connection_thread = torndb.Connection("127.0.0.1", "nodes", user="root", password="root")
 
 create_chain = """CREATE TABLE IF NOT EXISTS `chain%s` (
     `id` int(11) unsigned NOT NULL AUTO_INCREMENT,

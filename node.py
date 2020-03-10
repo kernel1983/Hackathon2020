@@ -114,7 +114,7 @@ class DashboardHandler(tornado.web.RequestHandler):
         self.write("<br>current_nodeid: %s <br>" % tree.current_nodeid)
 
         self.write("<br>pk: %s <br>" % base64.b32encode(tree.node_sk.get_verifying_key().to_string()).decode("utf8"))
-        # sender = base64.b64encode(sender_vk.to_string()).decode("utf8")
+        # sender = base64.b32encode(sender_vk.to_string()).decode("utf8")
         self.write("<br>node_parent:<br>")
         if tree.NodeConnector.node_parent:
             self.write("%s:%s<br>" %(tree.NodeConnector.node_parent.host, tree.NodeConnector.node_parent.port))

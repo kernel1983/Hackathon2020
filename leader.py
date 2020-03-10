@@ -109,10 +109,10 @@ def new_tx_block(seq):
 
     related_block = True
     if setting.NODE_DIVISION:
-        sender_bytes = base64.b64decode(sender.encode('utf8'))
+        sender_bytes = base64.b16decode(sender.encode('utf8'))
         sender_binary = bin(string_to_number(sender_bytes))[2:]
         # print(tree.current_port, "sender", sender_binary)
-        receiver_bytes = base64.b64decode(receiver.encode('utf8'))
+        receiver_bytes = base64.b16decode(receiver.encode('utf8'))
         receiver_binary = bin(string_to_number(receiver_bytes))[2:]
         # print(tree.current_port, "receiver", receiver_binary)
         if not sender_binary.startswith(tree.current_nodeid) and not receiver_binary.startswith(tree.current_nodeid):
@@ -154,10 +154,10 @@ def new_msg_block(seq):
 
     related_block = True
     if setting.NODE_DIVISION:
-        sender_bytes = base64.b64decode(sender.encode('utf8'))
+        sender_bytes = base64.b16decode(sender.encode('utf8'))
         sender_binary = bin(string_to_number(sender_bytes))[2:]
         # print(tree.current_port, "sender", sender_binary)
-        receiver_bytes = base64.b64decode(receiver.encode('utf8'))
+        receiver_bytes = base64.b16decode(receiver.encode('utf8'))
         receiver_binary = bin(string_to_number(receiver_bytes))[2:]
         # print(tree.current_port, "receiver", receiver_binary)
         if not sender_binary.startswith(tree.current_nodeid) and not receiver_binary.startswith(tree.current_nodeid):
@@ -432,12 +432,14 @@ def mining():
         messages = []
         while LeaderHandler.leader_nodes:
             LeaderHandler.leader_nodes.pop().close()
+        while LeaderConnector.leader_nodes:
+            LeaderConnector.leader_nodes.pop().close()
 
+    print(tree.current_port, "leader messages", len(messages), current_view, "of leader view", system_view)
     if current_view is None:
         return
 
     if messages:
-        # print(tree.current_port, "I'm the leader", current_view, "of leader view", system_view)
         seq = messages.pop(0)
         block = seq[1]
         if "transaction" in block:
@@ -503,7 +505,7 @@ def update(leaders):
     global messages
     global leader_connector_new
 
-    current_leaders = leaders
+    current_leaders = set(leaders)
     nodeno = str(tree.nodeid2no(tree.current_nodeid))
     nodepk = base64.b32encode(tree.node_sk.get_verifying_key().to_string()).decode("utf8")
     # print(tree.current_port, nodeno, pk)
@@ -519,7 +521,7 @@ def update(leaders):
                 # print(tree.current_port, other_leader_addr, connected)
                 leader_connector_new.append((no, pk))
 
-    previous_leaders = leaders
+    previous_leaders = current_leaders
 
 # @tornado.gen.coroutine
 # def main():
