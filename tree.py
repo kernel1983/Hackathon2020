@@ -134,6 +134,8 @@ class NodeHandler(tornado.websocket.WebSocketHandler):
                     base64.b32encode(node_sk.get_verifying_key().to_string()).decode("utf8"), current_nodeid, timestamp]
         sign_msg(message)
         self.write_message(tornado.escape.json_encode(message))
+        miner.nodes_to_fetch.append(self.branch)
+        miner.worker_thread_mining = False
 
         message = ["NODE_PARENTS", node_parents, uuid.uuid4().hex]
         self.write_message(tornado.escape.json_encode(message))
@@ -211,7 +213,7 @@ class NodeHandler(tornado.websocket.WebSocketHandler):
             # if (current_host, current_port) in leader.current_leaders and txid not in processed_message_ids:
             if txid not in processed_message_ids:
                 processed_message_ids.add(txid)
-                leader.messages.append(seq)
+                leader.message_queue.append(seq)
                 # print(current_port, "tx msg", seq)
 
         elif seq[0] == "NEW_MSG_BLOCK":
@@ -223,7 +225,7 @@ class NodeHandler(tornado.websocket.WebSocketHandler):
             msgid = seq[1]["message"]["msgid"]
             if msgid not in processed_message_ids:
                 processed_message_ids.add(msgid)
-                leader.messages.append(seq)
+                leader.message_queue.append(seq)
 
         # elif seq[0] == "UPDATE_HOME":
         #     fs.transactions.append(seq)
@@ -386,7 +388,7 @@ class NodeConnector(object):
             # if (current_host, current_port) in leader.current_leaders and txid not in processed_message_ids:
             if txid not in processed_message_ids:
                 processed_message_ids.add(txid)
-                leader.messages.append(seq)
+                leader.message_queue.append(seq)
                 # print(current_port, "tx msg", seq)
 
         elif seq[0] == "NEW_MSG_BLOCK":
@@ -399,7 +401,7 @@ class NodeConnector(object):
             # if (current_host, current_port) in leader.current_leaders and msgid not in processed_message_ids:
             if msgid not in processed_message_ids:
                 processed_message_ids.add(msgid)
-                leader.messages.append(seq)
+                leader.message_queue.append(seq)
 
         # else:
         forward(seq)

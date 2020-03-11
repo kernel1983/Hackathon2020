@@ -92,7 +92,7 @@ def lastest_block(root_hash):
 
 
 def new_tx_block(seq):
-    global messages
+    global message_queue
     msg_header, transaction, timestamp, msg_id = seq
 
     txid = transaction["transaction"]["txid"]
@@ -128,16 +128,16 @@ def new_tx_block(seq):
         if receiver in locked_accounts:
             locked_accounts.remove(receiver)
 
-        # for tx in messages:
+        # for tx in message_queue:
         #     if tx["transaction"]["txid"] == txid:
-        #         messages.remove(tx)
+        #         message_queue.remove(tx)
         #         break
     except:
         pass
 
-
+# the signature verification should be processed in thread
 def new_msg_block(seq):
-    global messages
+    # global message_queue
     msg_header, block, timestamp, msg_id = seq
 
     msgid = block["message"]["msgid"]
@@ -401,11 +401,11 @@ class LeaderConnector(object):
 
         forward(seq)
 
-messages = []
+message_queue = []
 locked_accounts = set()
 # @tornado.gen.coroutine
 def mining():
-    global messages
+    global message_queue
     global locked_accounts
     global current_view_no
     global view_transactions
@@ -429,25 +429,25 @@ def mining():
     nodeno = str(tree.nodeid2no(tree.current_nodeid))
     nodepk = base64.b32encode(tree.node_sk.get_verifying_key().to_string()).decode("utf8")
     if (nodeno, nodepk) not in current_leaders:
-        messages = []
+        message_queue = []
         while LeaderHandler.leader_nodes:
             LeaderHandler.leader_nodes.pop().close()
         while LeaderConnector.leader_nodes:
             LeaderConnector.leader_nodes.pop().close()
 
-    print(tree.current_port, "leader messages", len(messages), current_view, "of leader view", system_view)
+    print(tree.current_port, "leader messages", len(message_queue), current_view, "of leader view", system_view)
     if current_view is None:
         return
 
-    if messages:
-        seq = messages.pop(0)
+    if message_queue:
+        seq = message_queue.pop(0)
         block = seq[1]
         if "transaction" in block:
             msgid = block["transaction"]["txid"]
             if current_view != system_view:
                 tx = database.connection.get("SELECT * FROM graph"+tree.current_port+" WHERE msgid = %s LIMIT 1", msgid)
                 if not tx:
-                    messages.append(seq)
+                    message_queue.append(seq)
                 return
             sender = block["transaction"]["sender"]
             receiver = block["transaction"]["receiver"]
@@ -460,7 +460,7 @@ def mining():
             if current_view != system_view:
                 msg = database.connection.get("SELECT * FROM graph"+tree.current_port+" WHERE msgid = %s LIMIT 1", msgid)
                 if not msg:
-                    messages.append(seq)
+                    message_queue.append(seq)
                 return
             sender = block["message"]["sender"]
             receiver = block["message"]["receiver"]
@@ -468,8 +468,8 @@ def mining():
             signature = block["signature"]
 
         if sender in locked_accounts or receiver in locked_accounts:
-            messages.append(seq)
-            print(tree.current_port, "put msg back", msgid, len(messages))
+            message_queue.append(seq)
+            print(tree.current_port, "put msg back", msgid, len(message_queue))
             return
         locked_accounts.add(sender)
         locked_accounts.add(receiver)
@@ -502,7 +502,7 @@ leader_connector_new = []
 def update(leaders):
     global current_leaders
     global previous_leaders
-    global messages
+    global message_queue
     global leader_connector_new
 
     current_leaders = set(leaders)

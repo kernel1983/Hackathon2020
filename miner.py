@@ -107,8 +107,8 @@ def new_block(seq):
 
 def update_leader(longest):
     # print([i.identity for i in longest[-setting.LEADERS_NUM-setting.ELECTION_WAIT:-setting.ELECTION_WAIT]])
-    leaders = [i for i in longest if i['timestamp'] < time.time()-setting.MAX_MESSAGE_DELAY_SECONDS][-setting.LEADERS_NUM:]
-    leader.system_view = longest[-1].height
+    leaders = [i for i in longest if i['timestamp'] < time.time()-setting.MAX_MESSAGE_DELAY_SECONDS and i['timestamp'] > time.time()-setting.MAX_MESSAGE_DELAY_SECONDS - setting.BLOCK_INTERVAL_SECONDS*20][-setting.LEADERS_NUM:]
+    leader.system_view = leaders[-1].height if leaders else None
     # print(leaders)
     leader.update([tuple(i.identity.split(":")) for i in leaders])
     # this method to wake up leader to work, is not as good as the timestamp way
@@ -137,6 +137,7 @@ class GetBlockHandler(tornado.web.RequestHandler):
 def fetch_chain(nodeid):
     print(tree.current_nodeid, 'fetch chain', nodeid)
     host, port = tree.current_host, tree.current_port
+    prev_nodeid = None
     while True:
         try:
             response = urllib.request.urlopen("http://%s:%s/get_node?nodeid=%s" % (host, port, nodeid))
@@ -146,7 +147,10 @@ def fetch_chain(nodeid):
         host, port = result['address']
         if result['nodeid'] == result['current_nodeid']:
             break
-        # print('result >>>>>', result)
+        if prev_nodeid == result['current_nodeid']:
+            break
+        prev_nodeid = result['current_nodeid']
+        print('result >>>>>', result)
 
     try:
         response = urllib.request.urlopen("http://%s:%s/get_highest_block" % (host, port))
@@ -301,7 +305,10 @@ def worker_thread():
         if tree.current_nodeid is None:
             continue
         print('chain validation')
-        if int(tree.current_port) > 8001:
+        if tree.current_nodeid == '':
+            fetch_chain('0')
+            fetch_chain('1')
+        elif tree.current_nodeid:
             fetch_chain(tree.current_nodeid[:-1])
         while nodes_to_fetch:
             nodeid = nodes_to_fetch.pop(0)
