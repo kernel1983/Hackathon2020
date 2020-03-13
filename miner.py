@@ -82,7 +82,9 @@ def looping():
         tree.forward(message)
 
     if recent_longest:
-        update_leader(recent_longest)
+        leaders = [i for i in recent_longest if i['timestamp'] < time.time()-setting.MAX_MESSAGE_DELAY_SECONDS and i['timestamp'] > time.time()-setting.MAX_MESSAGE_DELAY_SECONDS - setting.BLOCK_INTERVAL_SECONDS*20][-setting.LEADERS_NUM:]
+        # print(leaders)
+        leader.update(leaders)
 
     tornado.ioloop.IOLoop.instance().call_later(1, looping)
 
@@ -104,23 +106,6 @@ def new_block(seq):
             no, pk = identity.split(":")
             nodes_to_fetch.append(tree.nodeno2id(int(no)))
             worker_thread_mining = False
-
-def update_leader(longest):
-    # print([i.identity for i in longest[-setting.LEADERS_NUM-setting.ELECTION_WAIT:-setting.ELECTION_WAIT]])
-    leaders = [i for i in longest if i['timestamp'] < time.time()-setting.MAX_MESSAGE_DELAY_SECONDS and i['timestamp'] > time.time()-setting.MAX_MESSAGE_DELAY_SECONDS - setting.BLOCK_INTERVAL_SECONDS*20][-setting.LEADERS_NUM:]
-    leader.system_view = leaders[-1].height if leaders else None
-    # print(leaders)
-    leader.update([tuple(i.identity.split(":")) for i in leaders])
-    # this method to wake up leader to work, is not as good as the timestamp way
-
-    nodeno = str(tree.nodeid2no(tree.current_nodeid))
-    pk = base64.b32encode(tree.node_sk.get_verifying_key().to_string()).decode("utf8")
-    for i in leaders:
-        if i.identity == "%s:%s" % (nodeno, pk):
-            leader.current_view = i.height
-            break
-
-    # print(tree.current_port, "current view", leader.current_view, "system view", leader.system_view)
 
 class GetHighestBlockHandler(tornado.web.RequestHandler):
     def get(self):
@@ -150,7 +135,7 @@ def fetch_chain(nodeid):
         if prev_nodeid == result['current_nodeid']:
             break
         prev_nodeid = result['current_nodeid']
-        print('result >>>>>', result)
+        print('result >>>>>', nodeid, result)
 
     try:
         response = urllib.request.urlopen("http://%s:%s/get_highest_block" % (host, port))
@@ -197,7 +182,7 @@ def mining():
     longest = longest_chain(frozen_block_hash)
     if longest:
         highest_block_hash = longest[-1].hash
-        update_leader(longest)
+
     if len(longest) > setting.FROZEN_BLOCK_NO:
         frozen_block_hash = longest[-setting.FROZEN_BLOCK_NO].prev_hash
         frozen_longest = longest[:-setting.FROZEN_BLOCK_NO]
@@ -256,10 +241,10 @@ def mining():
         # print(tree.control_port, "new difficulty", new_difficulty, "height", height)
 
         # print("%s:%s" % (nodeno, pk))
-        if "%s:%s" % (nodeno, pk) in [i.identity for i in longest[-6:]]:
-            # this is a good place to wake up leader by timestamp
+        leaders = [i for i in longest if i['timestamp'] < time.time()-setting.MAX_MESSAGE_DELAY_SECONDS and i['timestamp'] > time.time()-setting.MAX_MESSAGE_DELAY_SECONDS - setting.BLOCK_INTERVAL_SECONDS*20][-setting.LEADERS_NUM:]
+        if "%s:%s" % (nodeno, pk) in [i.identity for i in leaders]:
             # tornado.ioloop.IOLoop.instance().call_later(1, mining)
-            # print([i.identity for i in longest[-6:]])
+            # print([i.identity for i in leaders])
             return
 
     else:
@@ -298,17 +283,15 @@ def worker_thread():
 
     while True:
         if worker_thread_mining:
+            # print('chain mining')
             mining()
             time.sleep(1)
             continue
 
         if tree.current_nodeid is None:
             continue
-        print('chain validation')
-        if tree.current_nodeid == '':
-            fetch_chain('0')
-            fetch_chain('1')
-        elif tree.current_nodeid:
+        # print('chain validation')
+        if tree.current_nodeid:
             fetch_chain(tree.current_nodeid[:-1])
         while nodes_to_fetch:
             nodeid = nodes_to_fetch.pop(0)

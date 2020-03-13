@@ -287,6 +287,7 @@ class NodeConnector(object):
 
         except:
             print(current_port, "NodeConnector reconnect ...")
+            tornado.ioloop.IOLoop.instance().call_later(1.0, self.connect)
             # tornado.ioloop.IOLoop.instance().call_later(1.0, bootstrap)
             # tornado.ioloop.IOLoop.instance().call_later(1.0, functools.partial(bootstrap, (self.host, self.port)))
             return
@@ -301,16 +302,18 @@ class NodeConnector(object):
         global parent_node_id_msg
 
         if message is None:
-            # print("reconnect2 ...")
-            if current_branch in available_branches:
-                available_branches.remove(current_branch)
+            print("NodeConnector reconnect2 ...")
+            # retry before choose another parent
+            # if current_branch in available_branches:
+            #     available_branches.remove(current_branch)
             # available_branches = set([tuple(i) for i in branches])
-            branches = list(available_branches)
-            current_branch = tuple(branches[0])
-            branch_host, branch_port, branch = current_branch
-            sig = node_sk.sign(b"%s%s%s%s" % (branch.encode("utf8"), current_host.encode("utf8"), current_port.encode("utf8"), self.pk))
+            # branches = list(available_branches)
+            # current_branch = tuple(branches[0])
+            # branch_host, branch_port, branch = current_branch
+            # sig = node_sk.sign(b"%s%s%s%s" % (branch.encode("utf8"), current_host.encode("utf8"), current_port.encode("utf8"), self.pk))
             # print(sig)
-            self.ws_uri = "ws://%s:%s/node?branch=%s&host=%s&port=%s&pk=%s&sig=%s" % (branch_host, branch_port, branch, current_host, current_port, base64.b32encode(self.pk).decode("utf8"), base64.b32encode(sig).decode("utf8"))
+            # self.ws_uri = "ws://%s:%s/node?branch=%s&host=%s&port=%s&pk=%s&sig=%s" % (branch_host, branch_port, branch, current_host, current_port, base64.b32encode(self.pk).decode("utf8"), base64.b32encode(sig).decode("utf8"))
+
             tornado.ioloop.IOLoop.instance().call_later(1.0, self.connect)
             return
 
@@ -485,6 +488,7 @@ def connect():
         if int(current_port) > 8001:
             no = int(current_port) - 8000
             port = (no >> 1) + 8000
+            print('Connector', bin(no)[3:])
             NodeConnector(parent_host, port, bin(no)[3:])
 
         else:

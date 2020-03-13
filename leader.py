@@ -132,8 +132,8 @@ def new_tx_block(seq):
         #     if tx["transaction"]["txid"] == txid:
         #         message_queue.remove(tx)
         #         break
-    except:
-        pass
+    except Exception as e:
+        print("Error: %s" % e)
 
 # the signature verification should be processed in thread
 def new_msg_block(seq):
@@ -172,8 +172,8 @@ def new_msg_block(seq):
             locked_accounts.remove(sender)
         if receiver in locked_accounts:
             locked_accounts.remove(receiver)
-    except:
-        pass
+    except Exception as e:
+        print("Error: %s" % e)
 
 
 def forward(seq):
@@ -435,7 +435,7 @@ def mining():
         while LeaderConnector.leader_nodes:
             LeaderConnector.leader_nodes.pop().close()
 
-    print(tree.current_port, "leader messages", len(message_queue), current_view, "of leader view", system_view)
+    # print(tree.current_port, "leader messages", len(message_queue), current_view, "of leader view", system_view)
     if current_view is None:
         return
 
@@ -502,16 +502,25 @@ leader_connector_new = []
 def update(leaders):
     global current_leaders
     global previous_leaders
-    global message_queue
     global leader_connector_new
+    global system_view
+    global current_view
 
-    current_leaders = set(leaders)
+    system_view = leaders[-1].height if leaders else None
     nodeno = str(tree.nodeid2no(tree.current_nodeid))
     nodepk = base64.b32encode(tree.node_sk.get_verifying_key().to_string()).decode("utf8")
-    # print(tree.current_port, nodeno, pk)
+    for i in leaders:
+        if i.identity == "%s:%s" % (nodeno, nodepk):
+            current_view = i.height
+            break
+
+    # print(tree.current_port, nodeno, nodepk)
+    # print(tree.current_port, "current view", current_view, "system view", system_view)
+
+    current_leaders = set([tuple(i.identity.split(":")) for i in leaders])
     # print(tree.current_port, leaders, previous_leaders)
     if (nodeno, nodepk) in current_leaders - previous_leaders:
-        for no, pk in leaders:
+        for no, pk in current_leaders:
             connected = set([(i.no, i.pk) for i in LeaderConnector.leader_nodes]) |\
                         set([(i.from_no, i.from_pk) for i in LeaderHandler.leader_nodes]) |\
                         set([(nodeno, nodepk)])

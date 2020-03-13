@@ -129,6 +129,10 @@ class DashboardHandler(tornado.web.RequestHandler):
             host, port = tree.node_neighborhoods[nodeid]
             self.write("%s %s:%s<br>" %(nodeid, host, port))
 
+        self.write("<br>recent longest:<br>")
+        for i in reversed(miner.recent_longest):
+            self.write("%s %s %s<br>" % (i['height'], i['hash'], i['identity']))
+
         self.write("<br>nodes_pool:<br>")
         for nodeid in tree.nodes_pool:
             pk = tree.nodes_pool[nodeid]
@@ -155,10 +159,6 @@ class DashboardHandler(tornado.web.RequestHandler):
         self.write("<br>LeaderConnector:<br>")
         for node in leader.LeaderConnector.leader_nodes:
             self.write("%s:%s<br>" %(node.host, node.port))
-
-        self.write("<br>recent longest:<br>")
-        for i in reversed(miner.recent_longest):
-            self.write("%s %s %s<br>" % (i['height'], i['hash'], i['identity']))
 
         self.write("<br>frozen chain:<br>")
         for i, h in enumerate(miner.frozen_chain):
