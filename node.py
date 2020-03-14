@@ -127,7 +127,7 @@ class DashboardHandler(tornado.web.RequestHandler):
         self.write("<br>node_neighborhoods:<br>")
         for nodeid in tree.node_neighborhoods:
             host, port = tree.node_neighborhoods[nodeid]
-            self.write("%s %s:%s<br>" %(nodeid, host, port))
+            self.write("%s %s:%s <a href='http://%s:%s/dashboard'>dashboard</a><br>" %(nodeid, host, port, host, port))
 
         self.write("<br>recent longest:<br>")
         for i in reversed(miner.recent_longest):
