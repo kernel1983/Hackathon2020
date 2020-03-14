@@ -90,14 +90,16 @@ def looping():
     tornado.ioloop.IOLoop.instance().call_later(1, looping)
 
 nodes_to_fetch = []
+highest_block_height = 0
 @tornado.gen.coroutine
 def new_block(seq):
     # global frozen_block_hash
     global nodes_to_fetch
     global recent_longest
     global worker_thread_mining
-    msg_header, block_hash, prev_hash, height, nonce, difficulty, identity, data, timestamp, msg_id = seq
+    global highest_block_height
 
+    msg_header, block_hash, prev_hash, height, nonce, difficulty, identity, data, timestamp, msg_id = seq
     try:
         database.connection.execute("INSERT INTO chain"+tree.current_port+" (hash, prev_hash, height, nonce, difficulty, identity, timestamp, data) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)", block_hash, prev_hash, height, nonce, difficulty, identity, timestamp, tornado.escape.json_encode(data))
     except Exception as e:
@@ -111,13 +113,14 @@ def new_block(seq):
     #             nodes_to_fetch.append(int(no))
     #         worker_thread_mining = False
 
-    if recent_longest:
-        print(recent_longest[-1].height, height, identity)
-        if recent_longest[-1].height + 1 < height:
-            no, pk = identity.split(":")
-            if int(no) not in nodes_to_fetch:
-                nodes_to_fetch.append(int(no))
-            worker_thread_mining = False
+    print(highest_block_height, height, identity)
+    if highest_block_height + 1 < height:
+        no, pk = identity.split(":")
+        if int(no) not in nodes_to_fetch:
+            nodes_to_fetch.append(int(no))
+        worker_thread_mining = False
+    elif highest_block_height + 1 == height:
+        highest_block_height = height
 
 class GetHighestBlockHandler(tornado.web.RequestHandler):
     def get(self):
@@ -189,11 +192,14 @@ def mining():
     global recent_longest
     global nodes_in_chain
     global highest_block_hash
+    global highest_block_height
     global messages_out
 
     longest = longest_chain(frozen_block_hash)
     if longest:
         highest_block_hash = longest[-1].hash
+        if highest_block_height < longest[-1].height:
+            highest_block_height = longest[-1].height
 
     if len(longest) > setting.FROZEN_BLOCK_NO:
         frozen_block_hash = longest[-setting.FROZEN_BLOCK_NO].prev_hash
@@ -292,6 +298,7 @@ def worker_thread():
     # global recent_longest
     global nodes_in_chain
     global highest_block_hash
+    global highest_block_height
     global worker_thread_mining
     global nodes_to_fetch
 
@@ -307,11 +314,12 @@ def worker_thread():
         # print('chain validation')
         # if tree.current_nodeid:
         #     fetch_chain(tree.current_nodeid[:-1])
-        while nodes_to_fetch:
-            no = nodes_to_fetch[0]
+        c = 0
+        for no in nodes_to_fetch:
+            c += 1
+            # no = nodes_to_fetch[0]
             nodeid = tree.nodeno2id(no)
             fetch_chain(nodeid)
-            nodes_to_fetch.pop(0)
 
         longest = longest_chain()
         if len(longest) >= setting.FROZEN_BLOCK_NO:
@@ -324,9 +332,10 @@ def worker_thread():
 
         if longest:
             highest_block_hash = longest[-1].hash
+            if highest_block_height < longest[-1].height:
+                highest_block_height = longest[-1].height
         else:
             highest_block_hash = '0'*64
-        worker_thread_mining = True
 
         for i in frozen_longest:
             if i.height % 1000 == 0:
@@ -335,6 +344,12 @@ def worker_thread():
             frozen_nodes_in_chain.update(data.get("nodes", {}))
             if i.hash not in frozen_chain:
                 frozen_chain.append(i.hash)
+
+        for i in range(c):
+            nodes_to_fetch.pop(0)
+        if not nodes_to_fetch:
+            worker_thread_mining = True
+
         time.sleep(1)
 
     # mining_task = tornado.ioloop.PeriodicCallback(mining, 1000) # , jitter=0.5
