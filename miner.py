@@ -1,5 +1,6 @@
 from __future__ import print_function
 
+import math
 import time
 import uuid
 import hashlib
@@ -209,6 +210,13 @@ def mining():
     #     tree.forward(tree.parent_node_id_msg)
     #     print(tree.current_port, 'parent_node_id_msg', tree.parent_node_id_msg)
 
+    if len(recent_longest) < setting.BLOCK_DIFFICULTY_CYCLE:
+        difficulty = 2**248
+    else:
+        height_in_cycle = recent_longest[-1].height % setting.BLOCK_DIFFICULTY_CYCLE
+        timecost = recent_longest[-1-height_in_cycle].timestamp - recent_longest[-1-height_in_cycle-setting.BLOCK_DIFFICULTY_CYCLE].timestamp
+        difficulty = 2**248 * timecost / (setting.BLOCK_INTERVAL_SECONDS * setting.BLOCK_DIFFICULTY_CYCLE)
+
     now = int(time.time())
     last_synctime = now - now % setting.NETWORK_SPREADING_SECONDS - setting.NETWORK_SPREADING_SECONDS
     nodes_to_update = {}
@@ -229,15 +237,9 @@ def mining():
     if longest:
         prev_hash = longest[-1].hash
         height = longest[-1].height
-        difficulty = longest[-1].difficulty
         identity = longest[-1].identity
         data = tornado.escape.json_decode(longest[-1].data)
-        recent = longest[-3:]
-        # print(recent)
-        if len(recent) * setting.BLOCK_INTERVAL_SECONDS > recent[-1].timestamp - recent[0].timestamp:
-            new_difficulty = min(255, difficulty + 1)
-        else:
-            new_difficulty = max(1, difficulty - 1)
+        new_difficulty = int(math.log(difficulty, 2))
         # print(tree.control_port, "new difficulty", new_difficulty, "height", height)
 
         # print("%s:%s" % (nodeno, pk))
@@ -259,7 +261,7 @@ def mining():
     new_timestamp = time.time()
     for i in range(100):
         block_hash = hashlib.sha256((prev_hash + data_json + str(new_timestamp) + str(difficulty) + new_identity + str(nonce)).encode('utf8')).hexdigest()
-        if int(block_hash, 16) < int("1" * (256-difficulty), 2):
+        if int(block_hash, 16) < difficulty:
             if longest:
                 print(tree.current_port, 'height', height, 'nodeid', tree.current_nodeid, 'nonce_init', tree.nodeid2no(tree.current_nodeid), 'timecost', longest[-1].timestamp - longest[0].timestamp)
 
@@ -291,8 +293,8 @@ def worker_thread():
         if tree.current_nodeid is None:
             continue
         # print('chain validation')
-        if tree.current_nodeid:
-            fetch_chain(tree.current_nodeid[:-1])
+        # if tree.current_nodeid:
+        #     fetch_chain(tree.current_nodeid[:-1])
         while nodes_to_fetch:
             nodeid = nodes_to_fetch.pop(0)
             fetch_chain(nodeid)

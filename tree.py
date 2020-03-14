@@ -134,8 +134,8 @@ class NodeHandler(tornado.websocket.WebSocketHandler):
                     base64.b32encode(node_sk.get_verifying_key().to_string()).decode("utf8"), current_nodeid, timestamp]
         sign_msg(message)
         self.write_message(tornado.escape.json_encode(message))
-        miner.nodes_to_fetch.append(self.branch)
-        miner.worker_thread_mining = False
+        # miner.nodes_to_fetch.append(self.branch)
+        # miner.worker_thread_mining = False
 
         message = ["NODE_PARENTS", node_parents, uuid.uuid4().hex]
         self.write_message(tornado.escape.json_encode(message))
