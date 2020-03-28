@@ -227,12 +227,12 @@ def mining():
     #     tree.forward(tree.parent_node_id_msg)
     #     print(tree.current_port, 'parent_node_id_msg', tree.parent_node_id_msg)
 
-    if len(recent_longest) < setting.BLOCK_DIFFICULTY_CYCLE:
-        difficulty = 2**248
-    else:
+    if len(recent_longest) > setting.BLOCK_DIFFICULTY_CYCLE:
         height_in_cycle = recent_longest[-1].height % setting.BLOCK_DIFFICULTY_CYCLE
-        timecost = recent_longest[-1-height_in_cycle].timestamp - recent_longest[-1-height_in_cycle-setting.BLOCK_DIFFICULTY_CYCLE].timestamp
+        timecost = recent_longest[-1-height_in_cycle].timestamp - recent_longest[-height_in_cycle-setting.BLOCK_DIFFICULTY_CYCLE].timestamp
         difficulty = 2**248 * timecost / (setting.BLOCK_INTERVAL_SECONDS * setting.BLOCK_DIFFICULTY_CYCLE)
+    else:
+        difficulty = 2**248
 
     now = int(time.time())
     last_synctime = now - now % setting.NETWORK_SPREADING_SECONDS - setting.NETWORK_SPREADING_SECONDS
@@ -256,7 +256,6 @@ def mining():
         height = longest[-1].height
         identity = longest[-1].identity
         data = tornado.escape.json_decode(longest[-1].data)
-        new_difficulty = int(math.log(difficulty, 2))
         # print(tree.control_port, "new difficulty", new_difficulty, "height", height)
 
         # print("%s:%s" % (nodeno, pk))
@@ -267,7 +266,8 @@ def mining():
             return
 
     else:
-        prev_hash, height, difficulty, new_difficulty, data, identity = '0'*64, 0, 1, 1, {}, ":"
+        prev_hash, height, data, identity = '0'*64, 0, {}, ":"
+    new_difficulty = int(math.log(difficulty, 2))
 
     # data = {"nodes": {k:list(v) for k, v in tree.nodes_pool.items()}}
     data["nodes"] = nodes_to_update
