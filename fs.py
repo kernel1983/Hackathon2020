@@ -157,9 +157,12 @@ class NewFileMetaHandler(tornado.web.RequestHandler):
         # print(tree.current_nodeid, len(self.request.body), self.request.body)
 
 class NewFileBlobHandler(tornado.web.RequestHandler):
-    @tornado.gen.coroutine
+    # @tornado.gen.coroutine
     def post(self):
-        print(tree.current_nodeid, len(self.request.body), self.request.body)
+        print(tree.current_nodeid, len(self.request.body))
+        for i in self.request.files:
+            print(i, self.request.files[i][0]['filename'])
+            print(self.request.files[i][0]['body'])
 
 class NewRootHomeHandler(tornado.web.RequestHandler):
     @tornado.gen.coroutine
