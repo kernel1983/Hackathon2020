@@ -303,7 +303,7 @@ def worker_thread():
     global nodes_to_fetch
 
     while True:
-        if worker_thread_mining:
+        if worker_thread_mining and setting.MINING:
             # print('chain mining')
             mining()
             time.sleep(1)

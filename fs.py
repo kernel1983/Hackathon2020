@@ -164,7 +164,7 @@ class NewFileBlobHandler(tornado.web.RequestHandler):
             print(i, self.request.files[i][0]['filename'])
             print(self.request.files[i][0]['body'])
 
-class NewRootHomeHandler(tornado.web.RequestHandler):
+class NewRootMetaHandler(tornado.web.RequestHandler):
     @tornado.gen.coroutine
     def get(self):
         body = '''{"type":"root_home","store_id":"","items":{"7z1805-x64.msi":"44decc5cd1513ae3b3fd7aabb7c7eb5e5dc57ee878a6b7178e8797c7364cfeaf","rustup-init.exe":"e40f2c826a3d87189b1393fbc541858f0a64854cac9a8b65c2328b6f80bb1396"},"owner":"someone's public key"}'''
