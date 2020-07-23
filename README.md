@@ -25,3 +25,18 @@ Windows WSL Ubuntu 18.04 LTS (Python 3.6+ required)
     sudo pip3 install -U setuptools pip
     sudo pip3 install -r requirements.txt
 
+## Tools
+
+https://www.heidisql.com/download.php?download=portable-64
+
+## Update MySQL PWD
+
+    sudo -s
+    mysql -uroot
+
+    use mysql
+    update user set authentication_string=PASSWORD('root') where User='root';
+    update user set plugin="mysql_native_password" where User='root';
+    flush privileges;
+    quit;
+
