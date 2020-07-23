@@ -23,7 +23,7 @@ from ecdsa import SigningKey, NIST256p
 # from umbral import pre, keys, signing
 # import umbral.config
 
-incremental_port = 8000
+incremental_port = 8001
 
 @tornado.gen.coroutine
 def get_node(target):
@@ -72,7 +72,7 @@ class NewNodeHandler(tornado.web.RequestHandler):
         self.count = int(self.get_argument("n", "1"))
         for i in range(self.count):
             incremental_port += 1
-            subprocess.Popen(["python", "node.py", "--host=%s"%control_host, "--port=%s"%incremental_port, "--control_host=%s"%control_host, "--control_port=%s"%control_port], shell=False)
+            subprocess.Popen(["python3", "node.py", "--host=%s"%control_host, "--port=%s"%incremental_port, "--control_host=%s"%control_host, "--control_port=%s"%control_port], shell=False)
             self.write("new node %s\n" % incremental_port)
 
 
@@ -85,13 +85,13 @@ class NewMsgHandler(tornado.web.RequestHandler):
         sender_filename = "pk0"
         sender_sk = SigningKey.from_pem(open("data/pk/"+sender_filename).read())
         sender_vk = sender_sk.get_verifying_key()
-        sender = base64.b64encode(sender_vk.to_string()).decode("utf8")
+        sender = base64.b32encode(sender_vk.to_string()).decode("utf8")
 
         j = random.randint(1,9)
         receiver_filename = "pk%s" % j
         receiver_sk = SigningKey.from_pem(open("data/pk/"+receiver_filename).read())
         receiver_vk = receiver_sk.get_verifying_key()
-        receiver = base64.b64encode(receiver_vk.to_string()).decode("utf8")
+        receiver = base64.b32encode(receiver_vk.to_string()).decode("utf8")
 
         msgid = uuid.uuid4().hex
         # amount = random.randint(1, 10)
@@ -107,7 +107,7 @@ class NewMsgHandler(tornado.web.RequestHandler):
         signature = sender_sk.sign(str(timestamp).encode("utf8"))
         data = {
             "message": message,
-            "signature": base64.b64encode(signature).decode("utf8")
+            "signature": base64.b32encode(signature).decode("utf8")
         }
 
         print("gen msg", msgid)
@@ -145,12 +145,12 @@ class NewTxHandler(tornado.web.RequestHandler):
             i = random.choice(list(user_nos))
             sender_sk = self.users[i]
             sender_vk = sender_sk.get_verifying_key()
-            sender = base64.b64encode(sender_vk.to_string()).decode("utf8")
+            sender = base64.b32encode(sender_vk.to_string()).decode("utf8")
 
             j = random.choice(list(user_nos - set([i])))
             receiver_sk = self.users[j]
             receiver_vk = receiver_sk.get_verifying_key()
-            receiver = base64.b64encode(receiver_vk.to_string()).decode("utf8")
+            receiver = base64.b32encode(receiver_vk.to_string()).decode("utf8")
 
             amount = random.randint(1, 10)
             txid = uuid.uuid4().hex
@@ -165,7 +165,7 @@ class NewTxHandler(tornado.web.RequestHandler):
             signature = sender_sk.sign(str(timestamp).encode("utf8"))
             data = {
                 "transaction": transaction,
-                "signature": base64.b64encode(signature).decode("utf8")
+                "signature": base64.b32encode(signature).decode("utf8")
             }
 
             print("gen tx", n, txid)

@@ -485,10 +485,10 @@ def connect():
     if setting.BOOTSTRAP_BY_PORT_NO:
         if NodeConnector.node_parent:
             return
-        if int(current_port) > 8001:
-            no = int(current_port) - 8000
-            port = (no >> 1) + 8000
-            print('Connector', bin(no)[3:])
+        if int(current_port) > 8002:
+            no = int(current_port) - 8001
+            port = (no >> 1) + 8001
+            print('Connector', bin(no)[3:], current_port)
             NodeConnector(parent_host, port, bin(no)[3:])
 
         else:

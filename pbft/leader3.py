@@ -105,13 +105,13 @@ def new_tx_block(seq):
     from_block = transaction["from_block"]
     to_block = transaction["to_block"]
 
-    sender_bin = bin(int.from_bytes(base64.b64decode(sender), 'big'))[2:].zfill(16)
-    receiver_bin = bin(int.from_bytes(base64.b64decode(receiver), 'big'))[2:].zfill(16)
+    sender_bin = bin(int.from_bytes(base64.b32decode(sender), 'big'))[2:].zfill(16)
+    receiver_bin = bin(int.from_bytes(base64.b32decode(receiver), 'big'))[2:].zfill(16)
     node_bin = bin(current_view - 1)[2:].zfill(2)
     # print(node_bin, sender_bin, receiver_bin)
     try:
         if sender_bin.endswith(node_bin) or receiver_bin.endswith(node_bin):
-            sql = "INSERT INTO graph"+current_port+" (txid, timestamp, hash, from_block, to_block, sender, receiver, nonce, data) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
+            sql = "INSERT INTO graph"+current_port+" (msgid, timestamp, hash, from_block, to_block, sender, receiver, nonce, data) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
             database.connection.execute(sql, txid, int(timestamp), block_hash, from_block, to_block, sender, receiver, nonce, tornado.escape.json_encode(transaction))
 
         if sender in locked_accounts:
@@ -180,64 +180,6 @@ class LeaderHandler(tornado.websocket.WebSocketHandler):
         if seq[0] == "NEW_TX_BLOCK":
             new_tx_block(seq)
             return
-
-        # elif seq[0] == "TX":
-        #     transaction = seq[1]
-        #     txid = transaction["transaction"]["txid"]
-        #     sender = transaction["transaction"]["sender"]
-        #     receiver = transaction["transaction"]["receiver"]
-        #     amount = transaction["transaction"]["amount"]
-        #     timestamp = transaction["transaction"]["timestamp"]
-        #     signature = transaction["signature"]
-        #     nonce = transaction["nonce"]
-        #     from_block = transaction["from_block"]
-        #     to_block = transaction["to_block"]
-
-        #     # sender_blocks = lastest_block(sender)
-        #     # receiver_blocks = lastest_block(receiver)
-
-        #     if from_block in locked_blocks or to_block in locked_blocks:
-        #         message = ["NAK", txid]
-        #         self.write_message(tornado.escape.json_encode(message))
-        #     else:
-        #         message = ["ACK", txid]
-        #         self.write_message(tornado.escape.json_encode(message))
-        #     print(current_port, "TX", message)
-        #     return
-
-        # elif seq[0] == "ACK":
-        #     txid = seq[1]
-        #     reply = block_to_reply.get(txid)
-        #     if self in reply:
-        #         reply.remove(self)
-        #     print(current_port, "ACK reply", reply)
-        #     if reply:
-        #         return
-
-        #     transaction = block_to_confirm.get(txid)
-        #     sender = transaction["transaction"]["sender"]
-        #     receiver = transaction["transaction"]["receiver"]
-
-        #     block_hash = transaction["block_hash"]
-        #     nonce = transaction["nonce"]
-        #     from_block = transaction["from_block"]
-        #     to_block = transaction["to_block"]
-        #     return
-
-        # elif seq[0] == "NAK":
-        #     txid = seq[1]
-        #     transaction = block_to_confirm.get(txid)
-        #     if transaction:
-        #         from_block = transaction["from_block"]
-        #         to_block = transaction["to_block"]
-
-        #         if from_block in locked_blocks:
-        #             locked_blocks.remove(from_block)
-        #         if to_block in locked_blocks:
-        #             locked_blocks.remove(to_block)
-        #         if transaction:
-        #             del block_to_confirm[txid]
-        #     return
 
         elif seq[0] == "PBFT_O":
             # print(current_port, "PBFT_O get message", seq[1])
@@ -399,67 +341,6 @@ class LeaderConnector(object):
                     forward(message)
             return
 
-        # elif seq[0] == "TX":
-        #     transaction = seq[1]
-        #     txid = transaction["transaction"]["txid"]
-        #     sender = transaction["transaction"]["sender"]
-        #     receiver = transaction["transaction"]["receiver"]
-        #     amount = transaction["transaction"]["amount"]
-        #     timestamp = transaction["transaction"]["timestamp"]
-        #     signature = transaction["signature"]
-        #     nonce = transaction["nonce"]
-        #     from_block = transaction["from_block"]
-        #     to_block = transaction["to_block"]
-
-        #     # sender_blocks = lastest_block(sender)
-        #     # receiver_blocks = lastest_block(receiver)
-
-        #     if from_block in locked_blocks or to_block in locked_blocks:
-        #         message = ["NAK", txid]
-        #         self.conn.write_message(tornado.escape.json_encode(message))
-        #     else:
-        #         message = ["ACK", txid]
-        #         self.conn.write_message(tornado.escape.json_encode(message))
-        #     print(current_port, "TX", message)
-        #     return
-
-        # elif seq[0] == "ACK":
-        #     txid = seq[1]
-        #     reply = block_to_reply.get(txid)
-        #     if self in reply:
-        #         reply.remove(self)
-        #     print(current_port, "ACK reply", reply)
-        #     if reply:
-        #         return
-
-        #     transaction = block_to_confirm.get(txid)
-        #     sender = transaction["transaction"]["sender"]
-        #     receiver = transaction["transaction"]["receiver"]
-
-        #     block_hash = transaction["block_hash"]
-        #     nonce = transaction["nonce"]
-        #     from_block = transaction["from_block"]
-        #     to_block = transaction["to_block"]
-        #     data = {}
-        #     database.connection.execute("INSERT INTO graph"+current_port+" (hash, from_block, to_block, sender, receiver, nonce, data) VALUES (%s, %s, %s, %s, %s, %s, %s)", block_hash, from_block, to_block, sender, receiver, nonce, tornado.escape.json_encode(data))
-        #     return
-
-        # elif seq[0] == "NAK":
-        #     txid = seq[1]
-        #     transaction = block_to_confirm.get(txid)
-        #     if transaction:
-        #         from_block = transaction["from_block"]
-        #         to_block = transaction["to_block"]
-
-        #         if from_block in locked_blocks:
-        #             locked_blocks.remove(from_block)
-        #         if to_block in locked_blocks:
-        #             locked_blocks.remove(to_block)
-        #         if transaction:
-        #             del block_to_confirm[txid]
-        #     return
-
-        # else:
         forward(seq)
 
 transactions = []
@@ -482,7 +363,7 @@ def mining():
         transaction = seq[1]
         txid = transaction["transaction"]["txid"]
         if current_view != system_view:
-            tx = database.connection.get("SELECT * FROM graph"+current_port+" WHERE txid = %s LIMIT 1", txid)
+            tx = database.connection.get("SELECT * FROM graph"+current_port+" WHERE msgid = %s LIMIT 1", txid)
             if not tx:
                 transactions.append(seq)
             return
@@ -524,8 +405,8 @@ def mining():
 class NewTxHandler(tornado.web.RequestHandler):
     def post(self):
         tx = tornado.escape.json_decode(self.request.body)
-        msg = ["NEW_TX", tx, time.time(), uuid.uuid4().hex]
-        transactions.append(msg)
+        message = ["NEW_TX", tx, time.time(), uuid.uuid4().hex]
+        transactions.append(message)
         self.finish({"txid": tx["transaction"]["txid"]})
 
 class Application(tornado.web.Application):

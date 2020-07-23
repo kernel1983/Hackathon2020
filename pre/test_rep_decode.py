@@ -29,7 +29,7 @@ t0 = time.time()
 f = open('./rep.txt', 'r')
 pk = f.readline()
 print(pk)
-pk_bytes = base64.b16decode(pk.strip())
+pk_bytes = base64.b32decode(pk.strip())
 
 # messages = []
 reps = []

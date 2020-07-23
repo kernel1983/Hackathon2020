@@ -28,7 +28,7 @@ nonce = 1
 position = 1
 
 out = open('./rep_threading.txt', 'w')
-out.write(base64.b16encode(pk_bytes).decode('utf8'))
+out.write(base64.b32encode(pk_bytes).decode('utf8'))
 
 messages = []
 for i in range(2**20):

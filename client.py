@@ -81,6 +81,14 @@ def cmd_add(local_filename):
     # keep calling /get_node?nodeid=NODE_ID with chunk hash
     # upload the nodes
 
+    # chunks [["0100111 chunk hash", ["0100111", "010011", "0100"]], ...]
+    # meta {"filename": [chunks, [permission1, permission2]], 
+    #       "folder"  : 
+    #            {"filename1": [chunks, [permission1, permission2, ...]],
+    #             "filename2": [chunks, [permission1, permission2, ...]], ...},
+    #        "meta"    : ""
+    #       }
+
 if __name__ == "__main__":
     # print(sys.argv[1])
     cmd = sys.argv[1]

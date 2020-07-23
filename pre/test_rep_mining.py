@@ -58,6 +58,6 @@ while True:
 print(time.time() - t0, nonce/(time.time() - t0), position/(time.time() - t0))
 
 out = open('./rep.txt', 'w')
-out.write(base64.b16encode(pk_bytes).decode('utf8'))
+out.write(base64.b32encode(pk_bytes).decode('utf8'))
 for position, nonce, r in results:
     out.write("\n"+str(position)+' '+str(nonce)+' '+str(r))
