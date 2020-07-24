@@ -109,10 +109,10 @@ def new_tx_block(seq):
 
     related_block = True
     if setting.NODE_DIVISION:
-        sender_bytes = base64.b16decode(sender.encode('utf8'))
+        sender_bytes = base64.b32decode(sender.encode('utf8'))
         sender_binary = bin(string_to_number(sender_bytes))[2:]
         # print(tree.current_port, "sender", sender_binary)
-        receiver_bytes = base64.b16decode(receiver.encode('utf8'))
+        receiver_bytes = base64.b32decode(receiver.encode('utf8'))
         receiver_binary = bin(string_to_number(receiver_bytes))[2:]
         # print(tree.current_port, "receiver", receiver_binary)
         if not sender_binary.startswith(tree.current_nodeid) and not receiver_binary.startswith(tree.current_nodeid):
@@ -154,10 +154,10 @@ def new_msg_block(seq):
 
     related_block = True
     if setting.NODE_DIVISION:
-        sender_bytes = base64.b16decode(sender.encode('utf8'))
+        sender_bytes = base64.b32decode(sender.encode('utf8'))
         sender_binary = bin(string_to_number(sender_bytes))[2:]
         # print(tree.current_port, "sender", sender_binary)
-        receiver_bytes = base64.b16decode(receiver.encode('utf8'))
+        receiver_bytes = base64.b32decode(receiver.encode('utf8'))
         receiver_binary = bin(string_to_number(receiver_bytes))[2:]
         # print(tree.current_port, "receiver", receiver_binary)
         if not sender_binary.startswith(tree.current_nodeid) and not receiver_binary.startswith(tree.current_nodeid):

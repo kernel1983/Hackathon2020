@@ -523,9 +523,9 @@ def main():
     control_port = args.control_port
 
     if setting.BOOTSTRAP_BY_PORT_NO:
-        if int(current_port) > 8001:
-            no = int(current_port) - 8000
-            parent_port = (no >> 1) + 8000
+        if int(current_port) > 8002:
+            no = int(current_port) - 8001
+            parent_port = (no >> 1) + 8001
 
     database.main()
 
