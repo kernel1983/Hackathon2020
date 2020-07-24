@@ -290,30 +290,62 @@ def mining():
 
         nonce += 1
 
-worker_thread_mining = False
-def worker_thread():
-    global frozen_block_hash
-    global frozen_chain
-    global frozen_nodes_in_chain
-    # global recent_longest
-    global nodes_in_chain
+def full_validate():
     global highest_block_hash
     global highest_block_height
-    global worker_thread_mining
     global nodes_to_fetch
+    global frozen_nodes_in_chain
+    global frozen_chain
+    global frozen_block_hash
+    # global worker_thread_mining
 
-    while True:
-        if worker_thread_mining and setting.MINING:
-            # print('chain mining')
-            mining()
-            time.sleep(1)
-            continue
+    c = 0
+    for no in nodes_to_fetch:
+        c += 1
+        # no = nodes_to_fetch[0]
+        nodeid = tree.nodeno2id(no)
+        fetch_chain(nodeid)
 
-        if tree.current_nodeid is None:
-            continue
-        # print('chain validation')
-        # if tree.current_nodeid:
-        #     fetch_chain(tree.current_nodeid[:-1])
+    longest = longest_chain()
+    if len(longest) >= setting.FROZEN_BLOCK_NO:
+        frozen_block_hash = longest[-setting.FROZEN_BLOCK_NO].prev_hash
+        frozen_longest = longest[:-setting.FROZEN_BLOCK_NO]
+    #     recent_longest = longest[-setting.FROZEN_BLOCK_NO:]
+    else:
+        frozen_longest = []
+    #     recent_longest = longest
+
+    if longest:
+        highest_block_hash = longest[-1].hash
+        if highest_block_height < longest[-1].height:
+            highest_block_height = longest[-1].height
+    else:
+        highest_block_hash = '0'*64
+
+    for i in frozen_longest:
+        if i.height % 1000 == 0:
+            print("frozen longest reload", i.height)
+        data = tornado.escape.json_decode(i.data)
+        frozen_nodes_in_chain.update(data.get("nodes", {}))
+        if i.hash not in frozen_chain:
+            frozen_chain.append(i.hash)
+
+    for i in range(c):
+        nodes_to_fetch.pop(0)
+    # if not nodes_to_fetch:
+    #     worker_thread_mining = True
+
+
+def increment_validate():
+    global highest_block_hash
+    global highest_block_height
+    global nodes_to_fetch
+    global frozen_nodes_in_chain
+    global frozen_chain
+    global frozen_block_hash
+    global worker_thread_mining
+
+    print(tree.current_port, nodes_to_fetch)
         c = 0
         for no in nodes_to_fetch:
             c += 1
@@ -321,7 +353,7 @@ def worker_thread():
             nodeid = tree.nodeno2id(no)
             fetch_chain(nodeid)
 
-        longest = longest_chain()
+    longest = longest_chain(frozen_block_hash)
         if len(longest) >= setting.FROZEN_BLOCK_NO:
             frozen_block_hash = longest[-setting.FROZEN_BLOCK_NO].prev_hash
             frozen_longest = longest[:-setting.FROZEN_BLOCK_NO]
@@ -350,6 +382,39 @@ def worker_thread():
         if not nodes_to_fetch:
             worker_thread_mining = True
 
+
+worker_thread_mining = False
+def worker_thread():
+    global frozen_block_hash
+    global frozen_chain
+    global frozen_nodes_in_chain
+    # global recent_longest
+    global nodes_in_chain
+    global worker_thread_mining
+
+    full_validated = False
+    while True:
+        # print("nodes_in_chain", sys.getsizeof(nodes_in_chain))
+        # print("frozen_chain", sys.getsizeof(frozen_chain))
+        # print("frozen_nodes_in_chain", sys.getsizeof(frozen_nodes_in_chain))
+        # print("recent_longest", sys.getsizeof(recent_longest))
+
+        if worker_thread_mining and setting.MINING:
+            # print('chain mining')
+            mining()
+            time.sleep(1)
+            continue
+
+        if tree.current_nodeid is None:
+            continue
+        # print('chain validation')
+        # if tree.current_nodeid:
+        #     fetch_chain(tree.current_nodeid[:-1])
+        if not full_validated:
+            full_validate()
+            full_validated = True
+
+        increment_validate()
         time.sleep(1)
 
     # mining_task = tornado.ioloop.PeriodicCallback(mining, 1000) # , jitter=0.5
