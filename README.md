@@ -25,13 +25,13 @@ Windows WSL Ubuntu 18.04 LTS (Python 3.6+ required)
     sudo pip3 install -U setuptools pip
     sudo pip3 install -r requirements.txt
 
-## Tools
+## Tips
 
 HeidiSQL
 
 https://www.heidisql.com/download.php?download=portable-64
 
-## Update MySQL PWD
+Update MySQL PWD and create database
 
     sudo -s
     mysql -uroot
