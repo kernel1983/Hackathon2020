@@ -25,7 +25,7 @@ from ecdsa import SigningKey, NIST256p
 USER_NO = 10
 count = 10
 users = {}
-transactions = []
+messages = []
 
 
 def tx():
@@ -33,17 +33,17 @@ def tx():
     known_addresses_list = [("127.0.0.1", "8002")]
     addr = random.choice(known_addresses_list)
 
-    print(len(transactions), addr)
+    print(len(messages), addr)
     http_client = tornado.httpclient.AsyncHTTPClient()
     # try:
     #     response = yield http_client.fetch("http://%s:%s/new_tx" % tuple(addr), method="POST", body=tornado.escape.json_encode(data))
     # except Exception as e:
     #     print("Error: %s" % e)
-    data = transactions.pop()
+    data = messages.pop()
     http_client.fetch("http://%s:%s/new_msg" % tuple(addr), method="POST", body=tornado.escape.json_encode(data), callback=cb)
 
 def cb(response):
-    if len(transactions) == 0:
+    if len(messages) == 0:
         tornado.ioloop.IOLoop.instance().stop()
         return
     tornado.ioloop.IOLoop.instance().add_callback(tx)
@@ -72,7 +72,7 @@ def main():
         amount = random.randint(1, 20)
         txid = uuid.uuid4().hex
         timestamp = int(time.time())
-        transaction = {
+        message = {
             "msgid": txid,
             "sender": sender,
             "receiver": receiver,
@@ -83,13 +83,13 @@ def main():
         # signature = sender_sk.sign(str(timestamp).encode("utf8"))
         signature = str(n).encode('utf8')
         data = {
-            "message": transaction,
+            "message": message,
             "signature": base64.b32encode(signature).decode("utf8")
         }
 
         # assert sender_vk.verify(signature, str(timestamp).encode("utf8"))
         print("gen msg", n)
-        transactions.append(data)
+        messages.append(data)
 
     tx()
 

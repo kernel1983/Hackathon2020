@@ -19,7 +19,6 @@ import tornado.escape
 import setting
 import miner
 import leader
-import fs
 import database
 import msg
 
@@ -226,9 +225,6 @@ class NodeHandler(tornado.websocket.WebSocketHandler):
             if msgid not in processed_message_ids:
                 processed_message_ids.add(msgid)
                 leader.message_queue.append(seq)
-
-        # elif seq[0] == "UPDATE_HOME":
-        #     fs.transactions.append(seq)
 
         forward(seq)
 

@@ -1,16 +1,16 @@
 # Hackathon2020
 
 
-Start dashboard in terminal:
+Start dashboard in Terminal (WSL Ubuntu 18.04 LTS):
 
     python3 dashboard.py
 
 
-Start node:
+Start node one by one through dashboard API:
 
     curl http://127.0.0.1:8000/new_node (or in browser)
 
-or manually in terminal:
+or manually in terminal (try byobu):
 
     python3 node.py --host=127.0.0.1 --port=8001 --control_host=127.0.0.1 --control_port=8000
 
@@ -19,21 +19,18 @@ Visualize in browser:
     http://127.0.0.1:8000/static/index.html
 
 
-Windows WSL Ubuntu 18.04 LTS (Python 3.6+ required)
+## Tips
+
+Windows WSL Ubuntu 18.04 LTS (Python 3.6+ required) (The packages version in requirements.txt are important)
 
     sudo apt install mysql-server python3 python3-pip
     sudo pip3 install -U setuptools pip
     sudo pip3 install -r requirements.txt
 
-## Tips
-
-HeidiSQL
-
-https://www.heidisql.com/download.php?download=portable-64
-
 Update MySQL PWD and create database
 
     sudo -s
+    service mysql start
     mysql -uroot
 
     create database nodes;
@@ -44,3 +41,6 @@ Update MySQL PWD and create database
     flush privileges;
     quit;
 
+HeidiSQL
+
+https://www.heidisql.com/download.php?download=portable-64

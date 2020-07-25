@@ -22,7 +22,6 @@ import tree
 import miner
 import leader
 import database
-import fs
 import msg
 
 class Application(tornado.web.Application):
@@ -35,14 +34,8 @@ class Application(tornado.web.Application):
                     (r"/get_node", GetNodeHandler),
                     (r"/disconnect", DisconnectHandler),
                     (r"/broadcast", BroadcastHandler),
-                    (r"/new_tx", NewTxHandler),
+                    # (r"/new_tx", NewTxHandler),
                     (r"/dashboard", DashboardHandler),
-                    # mtfs
-                    # (r"/user", fs.UserHandler),
-                    (r"/fs/new_file_blob", fs.NewFileBlobHandler),
-                    (r"/fs/new_file_meta", fs.NewFileMetaHandler),
-                    (r"/fs/new_root_meta", fs.NewRootMetaHandler),
-                    # (r"/activate_default_store", fs.ActivateDefaultStoreHandler),
                     (r"/new_msg", msg.NewMsgHandler),
                     (r"/get_msg", msg.GetMsgHandler),
                     (r"/wait_msg", msg.WaitMsgHandler),
@@ -173,8 +166,6 @@ def main():
 
     # leader.main()
     tornado.ioloop.IOLoop.instance().call_later(1, leader.mining)
-
-    # fs.main()
 
     worker_thread = threading.Thread(target=miner.worker_thread)
     worker_thread.start()
