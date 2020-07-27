@@ -187,7 +187,7 @@ jQuery.fn.springy = function(params) {
 
 
 	//////////////////////////////////////////////////渲染啊
-	var nodeId=1;
+	// var nodeId=1;
 	var renderer = this.renderer = new Springy.Renderer(layout,
 		function clear() {
 			ctx.clearRect(0,0,canvas.width,canvas.height);
@@ -332,17 +332,17 @@ jQuery.fn.springy = function(params) {
 			// 	ctx.fillStyle = "pink";//鼠标不靠近时的颜色
 			// }
 
-			if (node.color != undefined){
-				ctx.fillStyle = node.color;
-				if (selected !== null && selected.node !== null && selected.node.id === node.id) {
-					ctx.fillStyle = "green";//点击后的颜色
-				} else if (nearest !== null && nearest.node !== null && nearest.node.id === node.id) {
-					ctx.fillStyle = "YELLOW";//鼠标靠近变色
-				}
-			}
+			ctx.fillStyle = node.data.backgroundColor;
+			// if (node.color != undefined){
+			// 	if (selected !== null && selected.node !== null && selected.node.id === node.id) {
+			// 		ctx.fillStyle = "green";//点击后的颜色
+			// 	} else if (nearest !== null && nearest.node !== null && nearest.node.id === node.id) {
+			// 		ctx.fillStyle = "YELLOW";//鼠标靠近变色
+			// 	}
+			// }
 
 			ctx.beginPath();
-			ctx.arc(s.x ,s.y,20,0,Math.PI*2,true);
+			ctx.arc(s.x ,s.y, 20, 0, Math.PI*2, true);
 			ctx.closePath();
 			ctx.fill();
 			

@@ -202,6 +202,8 @@ class NodeHandler(tornado.websocket.WebSocketHandler):
 
         elif seq[0] == "NEW_CHAIN_BLOCK":
             miner.new_block(seq)
+            if control_node:
+                control_node.write_message(tornado.escape.json_encode(["BLOCK", current_nodeid, seq]))
 
         elif seq[0] == "NEW_TX_BLOCK":
             leader.new_tx_block(seq)
@@ -383,6 +385,8 @@ class NodeConnector(object):
 
         elif seq[0] == "NEW_CHAIN_BLOCK":
             miner.new_block(seq)
+            if control_node:
+                control_node.write_message(tornado.escape.json_encode(["BLOCK", current_nodeid, seq]))
 
         elif seq[0] == "NEW_TX_BLOCK":
             leader.new_tx_block(seq)
