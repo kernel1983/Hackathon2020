@@ -53,9 +53,9 @@ $(function(){
         }
     }
 
-    if (!window.WebSocket) {
-        window.WebSocket = window.MozWebSocket;
-    }
+    // if (!window.WebSocket) {
+    //     window.WebSocket = window.MozWebSocket;
+    // }
 
     url = "ws://"+location.host+"/visualize_data";
     socket = new WebSocket(url);
@@ -66,7 +66,7 @@ $(function(){
         if(seq[0] == "ADDRESS"){
             if(nodes[""] == undefined){
                 port = seq[2];
-                node = graph.newNode({label: port});
+                node = graph.newNode({label: port, color:'#fff'});
                 nodes[""] = node;
                 nodes_by_port[port] = node;
             }
@@ -74,7 +74,7 @@ $(function(){
         }else if(seq[0] == "ADDRESS2"){
             port = seq[2];
             nodeid = seq[3];
-            node = graph.newNode({label: port});
+            node = graph.newNode({label: port, color:'#fff'});
             nodes_by_port[port] = node;
             nodes[nodeid] = node;
             if(nodeid != ""){
@@ -94,7 +94,7 @@ $(function(){
     canvas.height = rect.height;
     canvas.width = rect.width;
 
-    var graph = new Springy.Graph();
+    var graph = window.graph = new Springy.Graph();
     var springy = window.springy = $('#springydemo').springy({
         graph: graph,
         nodeSelected: function(node){

@@ -296,6 +296,8 @@ class NodeConnector(object):
         global node_neighborhoods
         global nodes_pool
         global parent_node_id_msg
+        global control_node
+        global control_node_msg_queue
 
         if message is None:
             print("NodeConnector reconnect2 ...")
@@ -345,12 +347,16 @@ class NodeConnector(object):
             if parent_nodeid == "":
                 nodes_pool[parent_nodeid] = [parent_pk, timestamp]
             nodes_pool[nodeid] = [pk, timestamp]
-            print(current_port, "NODE_ID", nodeid, pk, parent_nodeid, parent_pk, seq[-1])
+            print(current_port, "NODE_ID", nodeid, self.branch, pk, parent_nodeid, parent_pk, seq[-1])
             if self.branch == nodeid:
                 current_nodeid = nodeid
 
+                print(current_port, "control_node", control_node)
                 if control_node:
                     control_node.write_message(tornado.escape.json_encode(["ADDRESS2", current_host, current_port, current_nodeid]))
+                else:
+                    print(current_port, "ADDRESS2 queue", current_host, current_port, current_nodeid)
+                    control_node_msg_queue.append(["ADDRESS2", current_host, current_port, current_nodeid])
 
                 # print(current_port, "NODE_PARENTS", node_parents[current_nodeid])
                 if self.conn and not self.conn.stream.closed:
@@ -433,13 +439,18 @@ def bootstrap(addr):
 
 # connector to control center
 control_node = None
+control_node_msg_queue = []
 @tornado.gen.coroutine
 def control_on_connect(future):
     global control_node
+    global control_node_msg_queue
 
     try:
         control_node = future.result()
         control_node.write_message(tornado.escape.json_encode(["ADDRESS", current_host, current_port]))
+        for msg in control_node_msg_queue:
+            control_node.write_message(tornado.escape.json_encode(msg))
+
     except:
         tornado.ioloop.IOLoop.instance().call_later(1.0, connect)
 
