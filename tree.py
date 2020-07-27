@@ -8,6 +8,7 @@ import argparse
 import uuid
 import functools
 import base64
+import random
 
 import tornado.web
 import tornado.websocket
@@ -168,6 +169,7 @@ class NodeHandler(tornado.websocket.WebSocketHandler):
         global node_neighborhoods
         global nodes_pool
 
+        yield tornado.gen.sleep(random.random())
         seq = tornado.escape.json_decode(message)
         # print(current_port, "on message from child", seq)
         if seq[0] == "DISCARDED_BRANCHES":
@@ -301,6 +303,7 @@ class NodeConnector(object):
         global control_node
         global control_node_msg_queue
 
+        yield tornado.gen.sleep(random.random())
         if message is None:
             print("NodeConnector reconnect2 ...")
             # retry before choose another parent

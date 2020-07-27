@@ -64,31 +64,37 @@ $(function(){
         seq = JSON.parse(event.data);
 
         if(seq[0] == "ADDRESS"){
-            if(nodes[""] == undefined){
-                port = seq[2];
+            port = seq[2];
+            if(port == "8002"){
                 node = graph.newNode({label: port, color:'#fff'});
                 nodes[""] = node;
-                // nodes_by_port[port] = node;
             }
 
         }else if(seq[0] == "ADDRESS2"){
             port = seq[2];
             nodeid = seq[3];
-            node = graph.newNode({label: port, color:'#fff'});
-            // nodes_by_port[port] = node;
-            nodes[nodeid] = node;
-            if(nodeid != ""){
-                parent_nodeid = nodeid.substring(0, nodeid.length-1);
-                // console.log(nodes[parent_nodeid]);
-                graph.newEdge(nodes[nodeid], nodes[parent_nodeid], {color: '#3399FF'});
+            if(nodes[nodeid] == undefined){
+                node = graph.newNode({label: port, color:'#fff'});
+                nodes[nodeid] = node;
+                if(nodeid != ""){
+                    parent_nodeid = nodeid.substring(0, nodeid.length-1);
+                    // console.log(nodes[parent_nodeid]);
+                    graph.newEdge(nodes[nodeid], nodes[parent_nodeid], {color: '#3399FF'});
+                }
             }
         }else if(seq[0] == "BLOCK"){
             nodeid = seq[1];
             block = seq[2];
-            if(nodes[nodeid]){
-                node = nodes[nodeid];
+            node = nodes[nodeid];
+            if(node){
+                // nodes_by_port[port] = node;
                 node.data.backgroundColor = "#"+seq[2][1].slice(-6);
             }
+            // if(nodeid != ""){
+            //     parent_nodeid = nodeid.substring(0, nodeid.length-1);
+            //     // console.log(nodes[parent_nodeid]);
+            //     graph.newEdge(nodes[nodeid], nodes[parent_nodeid], {color: '#3399FF'});
+            // }
         }
     };
 
