@@ -23,6 +23,7 @@ import miner
 import leader
 import database
 import msg
+import nameservice
 
 class Application(tornado.web.Application):
     def __init__(self):
@@ -40,6 +41,9 @@ class Application(tornado.web.Application):
                     (r"/get_msg", msg.GetMsgHandler),
                     (r"/wait_msg", msg.WaitMsgHandler),
                     (r"/get_chat", msg.GetChatHandler),
+                    (r"/regName", nameservice.RegNameHandler),
+                    (r"/getName", nameservice.GetNameHandler),
+                    (r"/updateName", nameservice.UpdateNameHandler),
                     ]
         settings = {"debug":True}
 
