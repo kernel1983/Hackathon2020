@@ -28,16 +28,16 @@ import database
 
 class RegNameHandler(tornado.web.RequestHandler):
     def post(self):
-        #example: {"domain":"suprise.com"}
+        #example requestMsg: {"domain":"suprise.com"}
         requestMsg = tornado.escape.json_decode(self.request.body)
-
-        msg = tornado.escape.json_decode(self.request.body)
-
-        self.write("RegNameHandler")
+        domain = requestMsg.domain
+        if len(domain) == 0:
+            self.get()
+        else:
+            self.reg(domain)
 
     def get(self):
-        msg = self.reg(randomDomain() +".com")
-        self.finish({"msgid": msg["message"]["msgid"]})
+        self.reg(randomDomain() +".com")
 
     def reg(self,domain):
         nodepk = base64.b32encode(tree.node_sk.get_verifying_key().to_string()).decode("utf8")
@@ -46,11 +46,14 @@ class RegNameHandler(tornado.web.RequestHandler):
             "signature": base64.b32decode("4".encode("utf8")).decode("utf8")
         }
         tree.forward(["NEW_MSG", msg, time.time(), uuid.uuid4().hex])
-        return msg
+        self.finish({"msgid": msg["message"]["msgid"], "msg":msg})
 
 class GetNameHandler(tornado.web.RequestHandler):
     def get(self):
-        self.write("GetNameHandler")
+        #example request params:   /...?get=baidu.com
+        arg = self.get_query_argument('get', '')
+        msg = leader.lastest_block(arg)
+        self.finish({"msg": msg})
 
 class UpdateNameHandler(tornado.web.RequestHandler):
     def post(self):
