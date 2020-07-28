@@ -52,6 +52,15 @@ class GetNameHandler(tornado.web.RequestHandler):
     def get(self):
         #example request params:   /...?get=baidu.com
         arg = self.get_query_argument('get', '')
+        possibleUrl = base64.b32encode(arg.encode("utf8"))
+        roots = database.connection.query("SELECT * FROM graph"+tree.current_port+" WHERE from_block = %s OR to_block = %s ORDER BY nonce", arg, possibleUrl)
+
+        for root in roots:
+            id = root.from_block
+            url = root.to_block
+            break
+        if len(id) > 0:
+            msg = {"id":id, "url":(base64.b32decode(url)).decode("utf8")}
         msg = leader.lastest_block(arg)
         self.finish({"msg": msg})
 
