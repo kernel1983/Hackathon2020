@@ -30,7 +30,7 @@ class RegNameHandler(tornado.web.RequestHandler):
     def post(self):
         #example requestMsg: {"domain":"suprise.com"}
         requestMsg = tornado.escape.json_decode(self.request.body)
-        domain = requestMsg.domain
+        domain = requestMsg["domain"]
         if len(domain) == 0:
             self.get()
         else:
