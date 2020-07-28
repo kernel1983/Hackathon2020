@@ -42,7 +42,7 @@ class RegNameHandler(tornado.web.RequestHandler):
     def reg(self,domain):
         nodepk = base64.b32encode(tree.node_sk.get_verifying_key().to_string()).decode("utf8")
         msg = {
-            "message":{"msgid":uuid.uuid4().hex, "sender":nodepk, "receiver":base64.b32encode(domain), "timestamp": time.time()},
+            "message":{"msgid":uuid.uuid4().hex, "sender":nodepk, "receiver":base64.b32encode(domain.encode("utf8")), "timestamp": time.time()},
             "signature": base64.b32decode("4".encode("utf8")).decode("utf8")
         }
         tree.forward(["NEW_MSG", msg, time.time(), uuid.uuid4().hex])
