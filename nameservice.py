@@ -71,15 +71,18 @@ class UpdateNameHandler(tornado.web.RequestHandler):
         self.write("UpdateNameHandler")
 
 def price(summary, value):
-    total = sum([l*a for l, a in summary.items()])
-    print(total)
+    total_alpha = sum(summary)
+    total_users = sum(summary.values())
+    # print(total)
     # weights = [total/l/a for l, a in summary.items()]
     # print(weights)
-    weight = sum([total/l for l, a in summary.items()])
-    return {l:total/l/a/weight*value for l, a in summary.items()}
+    weight = sum([total_alpha/l for l in summary if l > 0])
+    return {l: (value/total_users)*(weight/l) for l, a in summary.items() if l>0}
 
 def randomDomain():
     return ''.join(chr(97 + randint(0, 25)) for i in range(6))
 
-print(price({1:2, 2:10, 7:60}, 100*12*7))
+print(price({1:2, 2:10, 9:60, 7:1}, 100*7))
+# print(price({1:2, 2:10, 9:60, 7:1}, 700))
+print(sum([x*y for x, y in price({1:2, 2:10, 9:60, 7:1}, 700).items()]), 700)
 

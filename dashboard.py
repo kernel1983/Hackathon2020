@@ -58,6 +58,7 @@ class Application(tornado.web.Application):
                     (r"/get_user", GetUserHandler),
                     (r"/new_user", NewUserHandler),
                     (r"/new_file", NewFileHandler),
+                    (r"/get_price", GetPriceHandler),
                     (r"/visualize", VisualizeHandler),
                     (r"/visualize_data", VisualizeDataHandler),
                     (r"/static/(.*)", tornado.web.StaticFileHandler, dict(path=settings['static_path'])),
@@ -337,6 +338,16 @@ class NewFileHandler(tornado.web.RequestHandler):
             response = yield http_client.fetch(url, method="POST", body=ciphertext)
         except Exception as e:
             print("Error: %s" % e)
+
+class GetPriceHandler(tornado.web.RequestHandler):
+    # @tornado.gen.coroutine
+    def get(self):
+        import nameservice
+        name = self.get_argument("name")
+        mock_data = {1:15, 10:200, 16:800}
+        num = mock_data.get(len(name), 0)
+        mock_data.update({len(name): num+1})
+        self.finish(nameservice.price(mock_data, 12*7*100))
 
 
 class DashboardHandler(tornado.web.RequestHandler):

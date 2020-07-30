@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<!-- <link rel="apple-touch-icon" type="image/png" href="https://static.codepen.io/assets/favicon/apple-touch-icon-5ae1a0698dcc2402e9712f7d01ed509a57814f994c660df9f7a952f3060705ee.png" /> -->
+<!-- <meta name="apple-mobile-web-app-title" content="CodePen"> -->
+<!-- <link rel="shortcut icon" type="image/x-icon" href="https://static.codepen.io/assets/favicon/favicon-aec34940fbc1a6e787974dcd360f2c6b63348d4b1f4e06c77743096d55480f33.ico" /> -->
+<!-- <link rel="mask-icon" type="" href="https://static.codepen.io/assets/favicon/logo-pin-8f3771b1072e3c38bd662872f6b673a722f4b3ca2421637d5596661b4e2132cc.svg" color="#111" /> -->
+<title>Blockchain Name Service</title>
+<link href="https://fonts.googleapis.com/css?family=Montserrat:100,600" rel="stylesheet">
+<link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.css'>
+<script src="/static/js/jquery-1.12.4.js"></script>
+
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  background: linear-gradient(to bottom right, #274B74 0%, #8233C5 50%, #E963FD 100%);
+  font-family: "Montserrat", sans-serif;
+  overflow: hidden;
+}
+
+.container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+input[type=text] {
+  position: relative;
+  padding: 15px 40px 15px 20px;
+  width: 20px;
+  color: #525252;
+  text-transform: uppercase;
+  font-size: 16px;
+  font-weight: 100;
+  letter-spacing: 2px;
+  border: none;
+  border-radius: 5px;
+  background: linear-gradient(to right, #FFFFFF 0%, #464747 #F9F9F9 100%);
+  transition: width 0.4s ease;
+  outline: none;
+}
+input[type=text]:focus {
+  width: 300px;
+}
+
+i {
+  position: relative;
+  left: -37px;
+  color: #8233C5;
+}
+
+.social {
+  position: absolute;
+  right: 35px;
+  bottom: 35px;
+}
+.social img {
+  display: block;
+  width: 32px;
+}
+
+
+
+html,body {
+    overflow: hidden;
+    height: 100%
+}
+
+.fullpage {
+    padding-bottom: 0;
+    margin: 0;
+    display: -webkit-box;
+    display: -webkit-flex;
+    display: -ms-flexbox;
+    display: flex;
+    -webkit-box-orient: vertical;
+    -webkit-box-direction: normal;
+    -webkit-flex-direction: column;
+    -ms-flex-direction: column;
+    flex-direction: column
+}
+
+.fullpage .main-header {
+    min-width: 0
+}
+
+.fullpage .mobile-action-button {
+    display: block;
+    width: 48%;
+    float: left;
+    text-align: center;
+    margin: 0 4% 10px 0
+}
+
+.fullpage .mobile-action-button:nth-child(even) {
+    margin-right: 0
+}
+
+.fullpage .jump-view {
+    width: 48%;
+    margin: 0 4% 10px 0;
+    float: left
+}
+
+.fullpage .jump-view:nth-child(even) {
+    margin-right: 0
+}
+
+.fullpage .jump-view:nth-child(3) {
+    display: none
+}
+
+.fullpage .jump-label {
+    display: block
+}
+
+.oldie-header {
+    display: none;
+    padding: 5px;
+    background: black;
+    color: white
+}
+
+html.oldie .oldie-header {
+    display: block
+}
+
+html.oldie .main-header {
+    display: none
+}
+
+#result-iframe-wrap {
+    -webkit-box-flex: 1;
+    -webkit-flex: 1 1 auto;
+    -ms-flex: 1 1 auto;
+    flex: 1 1 auto;
+    height: 100%;
+    position: relative;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch
+}
+
+html.oldie #result-iframe-wrap {
+    height: 100%;
+    height: calc(100% - 32px)
+}
+
+#result {
+    position: absolute;
+    top: 0;
+    left: 0;
+    border: 0;
+    background: white;
+    width: 100%;
+    height: 100%;
+    display: block
+}
+
+#full-view-ad {
+    position: absolute;
+    left: 50%;
+    bottom: 9px;
+    -webkit-transform: translateX(-50%);
+    transform: translateX(-50%);
+    width: -webkit-fit-content;
+    width: -moz-fit-content;
+    width: fit-content;
+    z-index: 1
+}
+
+
+
+</style>
+</header>
+<script>
+    window.console = window.console || function(t) {};
+</script>
+<script>
+// if (document.location.search.match(/type=embed/gi)) {
+    // window.parent.postMessage("resize", "*");
+// }
+</script>
+</head>
+<body translate="no">
+<div class="container">
+<div>
+    <input id='search' placeholder='Search...' class='js-search' type="text">
+    <i class="fa fa-search"></i>
+    <br><br>
+    <div id="price" style="width: 300px; height: 50px; line-height: 50px; position: relative; color: white;
+    padding: 0 15px; background-color: black; border-radius: 5px; display: none;"></div>
+    </div>
+</div>
+
+<!-- <div class="social"> -->
+<!-- <a href="https://twitter.com/StefCharle" target="_blank"> -->
+<!-- <img src="https://s3-us-west-2.amazonaws.com/s.cdpn.io/149103/twitter.svg" alt=""> -->
+<!-- </a> -->
+<!-- </div> -->
+</body>
+
+<script>
+
+$(function(){
+    var timeout = null;
+    $("#search").blur(function(evt) {
+        $("#price").fadeOut();
+        clearTimeout(timeout);
+    });
+    $("#search").keyup(function(evt) {
+        $.getJSON('/get_price?name='+evt.target.value, function(rsp){
+            console.log(rsp[evt.target.value.length]);
+            if(rsp[evt.target.value.length]){
+                $("#price").text(rsp[evt.target.value.length].toFixed(2));
+            }
+            $("#price").fadeIn(function(){
+                if(timeout){
+                    clearTimeout(timeout);
+                    timeout = null;
+                }
+                timeout = setTimeout(function(){
+                    $("#price").fadeOut();
+                }, 3000);
+            });
+        });
+    });
+});
+    
+</script>
+    
+</html>
